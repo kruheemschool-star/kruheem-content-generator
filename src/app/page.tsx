@@ -18,6 +18,11 @@ import {
   UserPlus,
   Link,
   Heart,
+  Users,
+  GraduationCap,
+  Flame,
+  Film,
+  Tv,
 } from "lucide-react";
 
 type Mode = "Math Explainer" | "Study & Motivation";
@@ -41,6 +46,7 @@ export default function PromptBuilderPage() {
   const [selectedTones, setSelectedTones] = useState<string[]>(["อบอุ่น"]);
   const [length, setLength] = useState<string>("ปานกลาง");
   const [selectedCTAs, setSelectedCTAs] = useState<string[]>(["คอมเมนต์"]);
+  const [selectedSpecials, setSelectedSpecials] = useState<string[]>([]);
   const [keyDetail, setKeyDetail] = useState("");
 
   const [generatedPrompt, setGeneratedPrompt] = useState("");
@@ -56,6 +62,12 @@ export default function PromptBuilderPage() {
   function toggleCTA(cta: string) {
     setSelectedCTAs((prev) =>
       prev.includes(cta) ? prev.filter((c) => c !== cta) : [...prev, cta]
+    );
+  }
+
+  function toggleSpecial(s: string) {
+    setSelectedSpecials((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
     );
   }
 
@@ -117,6 +129,26 @@ export default function PromptBuilderPage() {
       ? `\nเน้นเป็นพิเศษ: ${keyDetail.trim()}`
       : "";
 
+    // Special Instructions
+    const specialMap: Record<string, string> = {
+      "ผู้ปกครอง":
+        'กลุ่มเป้าหมายผู้อ่าน: "ผู้ปกครอง" — เขียนสื่อสารถึงพ่อแม่ผู้ปกครองโดยตรง ใช้สรรพนาม "คุณพ่อคุณแม่" หรือ "ผู้ปกครอง" เน้นมุมมองการสนับสนุนลูก ความกังวลของผู้ปกครอง วิธีช่วยลูกที่บ้าน และผลลัพธ์ระยะยาวต่อพัฒนาการของเด็ก หลีกเลี่ยงการพูดกับเด็กโดยตรง',
+      "นักเรียน":
+        'กลุ่มเป้าหมายผู้อ่าน: "เด็กนักเรียน" — เขียนสื่อสารถึงนักเรียนโดยตรง ใช้สรรพนาม "หนูๆ" "เพื่อนๆ" หรือ "ลูกศิษย์" ใช้ภาษาวัยรุ่นที่เข้าใจง่าย เป็นกันเอง สนุก และให้กำลังใจ เหมือนพี่หรือครูที่คุยกับน้อง',
+      "ดราม่า":
+        'สไตล์การเขียน: "ดราม่าเรียกยอดวิว" — เปิดเรื่องด้วย Hook ที่ทรงพลัง สะเทือนอารมณ์ หรือชวนตกใจ ใช้ประโยคสั้นกระชับเร้าอารมณ์ ใส่จุดพลิก (Plot Twist) หรือเรื่องเล่าสะเทือนใจที่เกี่ยวกับหัวข้อ เน้นเรียกความสนใจให้คนอ่านหยุดเลื่อนและอ่านจนจบ แต่ยังคงสาระและความถูกต้องของเนื้อหาไว้',
+      "ภาพยนตร์":
+        'เทคนิคการอธิบาย: ใช้ "การอ้างอิงภาพยนตร์/ซีรีส์" ประกอบความเข้าใจ — ยกตัวอย่างฉากหรือพล็อตจากภาพยนตร์/ซีรีส์ที่คนไทยรู้จักกันดี (เช่น Marvel, Harry Potter, Squid Game, หนังไทยยอดนิยม ฯลฯ) มาเปรียบเทียบกับแนวคิดในหัวข้อ อย่างน้อย 1 ตัวอย่างที่ชัดเจน ทำให้ผู้อ่านเห็นภาพและจำได้ง่าย',
+      "การ์ตูน":
+        'เทคนิคการอธิบาย: ใช้ "การอ้างอิงการ์ตูน/อนิเมะ" ประกอบความเข้าใจ — ยกตัวอย่างตัวละครหรือสถานการณ์จากการ์ตูน/อนิเมะยอดนิยม (เช่น Doraemon, One Piece, Naruto, Conan, Dragon Ball ฯลฯ) มาเปรียบเทียบกับแนวคิดในหัวข้อ อย่างน้อย 1 ตัวอย่างที่ชัดเจน ทำให้ผู้อ่านเห็นภาพและสนุกไปกับเนื้อหา',
+    };
+    const specialBlock =
+      selectedSpecials.length > 0
+        ? `\nคำสั่งพิเศษเพิ่มเติม (ต้องปฏิบัติตามทุกข้อ):\n${selectedSpecials
+            .map((s) => `- ${specialMap[s] || s}`)
+            .join("\n")}`
+        : "";
+
     const outputFormat = `ข้อกำหนด Output (Plain Text สำหรับ Facebook):
 1. หัวข้อแนะนำ 3 ตัวเลือก (Clickbait ที่มีสาระ ดึงดูดสายตา)
 2. เนื้อหาฉบับสมบูรณ์ตามโครงสร้าง ใช้อีโมจิตามเหมาะสม
@@ -136,7 +168,7 @@ ${modeBlock}
 
 ${toneBlock}
 
-${lengthBlock}${detailBlock}
+${lengthBlock}${detailBlock}${specialBlock}
 
 ${ctaBlock}
 
@@ -176,6 +208,14 @@ ${outputFormat}
     { value: "แท็กเพื่อน", icon: <UserPlus size={14} strokeWidth={1.5} />, label: "แท็กเพื่อน" },
     { value: "กดลิงก์", icon: <Link size={14} strokeWidth={1.5} />, label: "กดลิงก์/สมัคร" },
     { value: "กดติดตาม", icon: <Heart size={14} strokeWidth={1.5} />, label: "ไลค์/ติดตาม" },
+  ];
+
+  const specialOptions: { value: string; icon: React.ReactNode; label: string; desc: string }[] = [
+    { value: "ผู้ปกครอง", icon: <Users size={16} strokeWidth={1.5} />, label: "เขียนถึงผู้ปกครอง", desc: "สื่อสารกับพ่อแม่โดยตรง" },
+    { value: "นักเรียน", icon: <GraduationCap size={16} strokeWidth={1.5} />, label: "เขียนถึงนักเรียน", desc: "พูดกับเด็กๆ เป็นกันเอง" },
+    { value: "ดราม่า", icon: <Flame size={16} strokeWidth={1.5} />, label: "สไตล์ดราม่า", desc: "เร้าอารมณ์ เรียกยอดวิว" },
+    { value: "ภาพยนตร์", icon: <Film size={16} strokeWidth={1.5} />, label: "อ้างอิงภาพยนตร์", desc: "ยกตัวอย่างจากหนัง/ซีรีส์" },
+    { value: "การ์ตูน", icon: <Tv size={16} strokeWidth={1.5} />, label: "อ้างอิงการ์ตูน", desc: "ยกตัวอย่างจากอนิเมะ" },
   ];
 
   const lengths: { value: string; icon: React.ReactNode; label: string; words: string }[] = [
@@ -336,6 +376,44 @@ ${outputFormat}
                       >
                         {c.icon}
                         {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Special Instructions Multi-select */}
+              <div className="field-group">
+                <label className="field-label">
+                  คำสั่งพิเศษ
+                  <span className="opacity-50 text-[10px] ml-1">(ติ๊กเลือกได้หลายข้อ หรือไม่เลือกเลยก็ได้)</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {specialOptions.map((s) => {
+                    const isActive = selectedSpecials.includes(s.value);
+                    return (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => toggleSpecial(s.value)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all duration-300 ${
+                          isActive
+                            ? "bg-[#ffb789]/10 border-[#ffb789] text-[#ffb789]"
+                            : "bg-bg-elevated/60 border-transparent opacity-70 hover:opacity-100"
+                        }`}
+                      >
+                        <span
+                          className={`flex items-center justify-center w-5 h-5 rounded-md border-2 transition-colors ${
+                            isActive ? "bg-[#ffb789] border-[#ffb789]" : "border-white/20"
+                          }`}
+                        >
+                          {isActive && <Check size={12} strokeWidth={3} className="text-[#0a0a0c]" />}
+                        </span>
+                        <span className={isActive ? "text-[#ffb789]" : "text-tertiary"}>{s.icon}</span>
+                        <div className="leading-tight flex-1 min-w-0">
+                          <p className="text-micro font-bold truncate">{s.label}</p>
+                          <p className="text-[9px] opacity-60 truncate">{s.desc}</p>
+                        </div>
                       </button>
                     );
                   })}
