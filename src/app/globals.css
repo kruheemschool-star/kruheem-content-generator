@@ -2,21 +2,24 @@
 @import "tailwindcss";
 
 @theme {
+  /* Default (dark) theme tokens — exposed to Tailwind utilities */
   --color-bg-primary: #0a0a0c;
   --color-bg-secondary: #121215;
   --color-bg-tertiary: #1a1a1f;
   --color-bg-elevated: #22222a;
   --color-bg-hover: #2d2d35;
+  --color-bg-glass: rgba(9, 9, 11, 0.75);
 
   --color-border-subtle: rgba(255, 183, 137, 0.08);
-  /* Apricot subtle */
   --color-border-default: rgba(255, 183, 137, 0.15);
   --color-border-focus: #ffb789;
-  /* Apricot Primary */
 
   --color-text-primary: #fff9f5;
   --color-text-secondary: #d4c4ba;
   --color-text-tertiary: #92847c;
+
+  --color-shadow-soft: rgba(0, 0, 0, 0.35);
+  --color-ambient: rgba(255, 183, 137, 0.12);
 
   /* Apricot Palette */
   --color-apricot-500: #ffb789;
@@ -32,6 +35,37 @@
 
   --font-sans: "Outfit", "Noto Sans Thai", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque", "Noto Sans Thai", sans-serif;
+}
+
+/* ── Dark Theme (explicit) ── */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* ── Light Theme ── */
+[data-theme="light"] {
+  --color-bg-primary: #fdf8f3;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #fbf1e8;
+  --color-bg-elevated: #f5e6d6;
+  --color-bg-hover: #efd9c2;
+  --color-bg-glass: rgba(253, 248, 243, 0.78);
+
+  --color-border-subtle: rgba(232, 149, 95, 0.18);
+  --color-border-default: rgba(232, 149, 95, 0.32);
+  --color-border-focus: #e8955f;
+
+  --color-text-primary: #2a1a10;
+  --color-text-secondary: #6b4f3d;
+  --color-text-tertiary: #9a8170;
+
+  --color-apricot-glow: rgba(232, 149, 95, 0.18);
+  --color-apricot-glow-strong: rgba(232, 149, 95, 0.32);
+
+  --color-shadow-soft: rgba(180, 100, 40, 0.12);
+  --color-ambient: rgba(255, 183, 137, 0.35);
+
+  color-scheme: light;
 }
 
 /* ── Base ── */
@@ -51,6 +85,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Smooth theme transition for surfaces */
+.surface,
+.surface-elevated,
+.field-input,
+.field-textarea,
+.mode-option,
+.tone-option,
+.output-surface,
+.segmented,
+.segmented-item,
+.btn-ghost {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* ambient glow */
@@ -60,11 +109,45 @@ body::before {
   top: -120px;
   left: 50%;
   transform: translateX(-50%);
-  width: 1000px;
-  height: 500px;
-  background: radial-gradient(ellipse, var(--color-apricot-glow) 0%, transparent 70%);
+  width: 1200px;
+  height: 600px;
+  background: radial-gradient(ellipse, var(--color-ambient) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+  transition: background 0.4s ease;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-toggle:hover {
+  border-color: var(--color-apricot-500);
+  color: var(--color-apricot-500);
+  background: var(--color-bg-elevated);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+.theme-toggle .icon-wrapper {
+  display: inline-flex;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
 }
 
 /* ── Scrollbar ── */

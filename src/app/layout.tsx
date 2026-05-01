@@ -1,10 +1,24 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "Kru Heem Prompt Builder",
   description: "สร้าง Prompt สำหรับเจนคอนเทนต์การศึกษาในสไตล์ครูฮีม",
 };
+
+const themeInitScript = `
+(function() {
+  try {
+    var stored = localStorage.getItem('theme');
+    var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    var theme = stored || (prefersLight ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -12,7 +26,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th">
+    <html lang="th" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <div className="relative z-10 min-h-screen flex flex-col">
           {/* Header */}
@@ -20,7 +37,7 @@ export default function RootLayout({
             className="sticky top-0 z-50 border-b"
             style={{
               borderColor: "var(--color-border-subtle)",
-              background: "rgba(9, 9, 11, 0.85)",
+              background: "var(--color-bg-glass)",
               backdropFilter: "blur(12px)",
               WebkitBackdropFilter: "blur(12px)",
             }}
@@ -29,14 +46,17 @@ export default function RootLayout({
               <div className="flex items-center gap-2.5">
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm"
-                  style={{ background: "var(--color-violet-500)" }}
+                  style={{
+                    background: "linear-gradient(135deg, var(--color-apricot-500), var(--color-apricot-600))",
+                    boxShadow: "0 4px 14px var(--color-apricot-glow-strong)",
+                  }}
                 >
                   ฮ
                 </div>
                 <span className="font-semibold text-sm tracking-tight" style={{ color: "var(--color-text-primary)" }}>
                   Kru Heem
                 </span>
-                <span className="text-micro" style={{ color: "var(--color-text-tertiary)" }}>
+                <span className="text-micro hidden sm:inline" style={{ color: "var(--color-text-tertiary)" }}>
                   Prompt Builder
                 </span>
               </div>
@@ -45,6 +65,7 @@ export default function RootLayout({
                   <span className="status-dot online" />
                   Online
                 </span>
+                <ThemeToggle />
               </div>
             </div>
           </header>

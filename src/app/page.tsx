@@ -23,6 +23,11 @@ import {
   Flame,
   Film,
   Tv,
+  Atom,
+  AlignJustify,
+  AlignLeft,
+  Calculator,
+  Pencil,
 } from "lucide-react";
 
 type Mode = "Math Explainer" | "Study & Motivation";
@@ -47,6 +52,7 @@ export default function PromptBuilderPage() {
   const [length, setLength] = useState<string>("ปานกลาง");
   const [selectedCTAs, setSelectedCTAs] = useState<string[]>(["คอมเมนต์"]);
   const [selectedSpecials, setSelectedSpecials] = useState<string[]>([]);
+  const [writingFormat, setWritingFormat] = useState<string>("ต่อเนื่อง");
   const [keyDetail, setKeyDetail] = useState("");
 
   const [generatedPrompt, setGeneratedPrompt] = useState("");
@@ -81,7 +87,8 @@ export default function PromptBuilderPage() {
 - เข้าใจง่ายที่สุด: เขียนให้อ่านแล้วเข้าใจในทันที ไม่ใช้ศัพท์วิชาการที่ยาก ใช้คำพื้นบ้านบ้านที่คนทั่วไปเข้าใจได้ง่ายที่สุด (No Complex Jargon)
 - เกลียดศัพท์วิชาการ: ชอบเปรียบเทียบกับชีวิตจริง (Analogy) ให้เห็นภาพ
 - ให้กำลังใจ: เข้าใจความเจ็บปวดของคนที่ไม่เก่งเลข
-- มีเหตุผล: อธิบายเป็นลำดับ 1, 2, 3...`;
+- มีเหตุผล: อธิบายเป็นลำดับ 1, 2, 3...
+- ห้ามทักทาย ห้ามแนะนำตัว: ห้ามขึ้นต้นด้วย "สวัสดี" "หวัดดี" "สวัสดีครับ/ค่ะ" "Hello" หรือคำทักทายใดๆ ห้ามแนะนำตัวเองว่า "ครูฮีมขอแนะนำตัว..." "วันนี้ครูจะมาเล่า..." ห้ามเกริ่นว่าจะเขียนเรื่องอะไร ให้กระโดดเข้าเนื้อหาทันทีด้วยประโยคทรงพลังที่หยุดสายตา (Scroll-Stopping Hook)`;
 
     let modeBlock = "";
     if (mode === "Math Explainer") {
@@ -141,6 +148,8 @@ export default function PromptBuilderPage() {
         'เทคนิคการอธิบาย: ใช้ "การอ้างอิงภาพยนตร์/ซีรีส์" ประกอบความเข้าใจ — ยกตัวอย่างฉากหรือพล็อตจากภาพยนตร์/ซีรีส์ที่คนไทยรู้จักกันดี (เช่น Marvel, Harry Potter, Squid Game, หนังไทยยอดนิยม ฯลฯ) มาเปรียบเทียบกับแนวคิดในหัวข้อ อย่างน้อย 1 ตัวอย่างที่ชัดเจน ทำให้ผู้อ่านเห็นภาพและจำได้ง่าย',
       "การ์ตูน":
         'เทคนิคการอธิบาย: ใช้ "การอ้างอิงการ์ตูน/อนิเมะ" ประกอบความเข้าใจ — ยกตัวอย่างตัวละครหรือสถานการณ์จากการ์ตูน/อนิเมะยอดนิยม (เช่น Doraemon, One Piece, Naruto, Conan, Dragon Ball ฯลฯ) มาเปรียบเทียบกับแนวคิดในหัวข้อ อย่างน้อย 1 ตัวอย่างที่ชัดเจน ทำให้ผู้อ่านเห็นภาพและสนุกไปกับเนื้อหา',
+      "บุคคลสำคัญ":
+        'เทคนิคการอธิบาย: ใช้ "การอ้างอิงบุคคลสำคัญ — นักวิทยาศาสตร์/นักคณิตศาสตร์" ประกอบความเข้าใจ — ยกเรื่องราว เกร็ดประวัติ หรือผลงานของบุคคลที่เกี่ยวข้องกับหัวข้อ (เช่น Albert Einstein, Isaac Newton, Pythagoras, Euclid, Carl Friedrich Gauss, Marie Curie, Alan Turing, Srinivasa Ramanujan ฯลฯ) มาเชื่อมโยงเข้ากับแนวคิด อย่างน้อย 1 ตัวอย่างที่ชัดเจน เน้นเล่าเป็นเรื่องเล่าที่น่าสนใจ ทำให้ผู้อ่านรู้สึกว่าเรื่องนี้มีที่มาน่าทึ่งและจดจำได้ง่าย',
     };
     const specialBlock =
       selectedSpecials.length > 0
@@ -149,12 +158,27 @@ export default function PromptBuilderPage() {
             .join("\n")}`
         : "";
 
+    // Writing Format
+    const formatMap: Record<string, string> = {
+      "ต่อเนื่อง":
+        'รูปแบบการเขียน: "บทความยาวต่อเนื่อง" — เขียนเป็นย่อหน้ายาวต่อเนื่องเหมือนบทความ มีการเชื่อมโยงประโยคและความคิดอย่างลื่นไหล ใช้คำเชื่อมเพื่อร้อยเรียงเนื้อหาให้เป็นเรื่องเดียวกัน ไม่ตัดบรรทัดถี่ๆ',
+      "เว้นบรรทัด":
+        'รูปแบบการเขียน: "เว้นบรรทัดให้อ่านง่าย" — ตัดประโยคให้สั้น กระชับ บรรทัดละ 1 ใจความ เว้นบรรทัดบ่อยๆ เพื่อให้อ่านง่ายบนมือถือ เน้นการสแกนสายตาได้รวดเร็ว เหมาะกับการเลื่อนอ่านบน Facebook (ห้ามเขียนเป็นย่อหน้ายาว)',
+    };
+    const formatBlock = `\nรูปแบบการนำเสนอเนื้อหา: ${formatMap[writingFormat] || writingFormat}`;
+
     const outputFormat = `ข้อกำหนด Output (Plain Text สำหรับ Facebook):
 1. หัวข้อแนะนำ 3 ตัวเลือก (Clickbait ที่มีสาระ ดึงดูดสายตา)
 2. เนื้อหาฉบับสมบูรณ์ตามโครงสร้าง ใช้อีโมจิตามเหมาะสม
 3. **กฎเหล็กเรื่อง Format**: ขอแบบ Plain Text เท่านั้น **ห้ามใช้ Markdown, ห้ามใช้ตัวหนา (**), ห้ามใช้ #หน้าหัวข้อ** (ให้ใช้ภาษาคนปกติเขียนเพื่อลง Facebook ได้ทันทีโดยไม่มีสัญลักษณ์แปลกปลอม)
-4. Call to Action ตามที่กำหนด
-5. Hashtags 5–10 คำ (ต้องมี #ครูฮีม)
+4. **กฎเหล็กเรื่องการเปิดบทความ (Opening Hook)**:
+   - ห้ามขึ้นต้นด้วยคำทักทาย ("สวัสดี", "หวัดดี", "Hello") ในทุกกรณี
+   - ห้ามแนะนำตัวเอง หรือเกริ่นว่า "วันนี้จะมาเล่าเรื่อง..." "บทความนี้จะพูดถึง..."
+   - บรรทัดแรกของเนื้อหาต้องเป็น "ประโยคทรงพลัง 1 ประโยค" ที่หยุดสายตาคนเลื่อนผ่าน (Scroll-Stopping Hook)
+   - รูปแบบ Hook ที่ใช้ได้: คำถามชวนคิด / ตัวเลขชวนช็อก / ประโยคปฏิเสธความเชื่อเดิม / ข้อเท็จจริงที่ขัดสามัญสำนึก / ฉากเปิดเร้าอารมณ์ / คำพูดสั้นทรงพลัง
+   - ตัวอย่างที่ดี: "90% ของเด็กไทยเกลียดเลข...เพราะครูสอนผิดวิธี" หรือ "ถ้าคุณบอกว่าเลขยาก แสดงว่ายังไม่เจอวิธีนี้" หรือ "เลข 1 ตัวที่จะเปลี่ยนชีวิตการเรียนของหนูตลอดไป"
+5. Call to Action ตามที่กำหนด
+6. Hashtags 5–10 คำ (ต้องมี #ครูฮีม)
 
 Format (ห้ามใส่สัญลักษณ์ Markdown):
 [หัวข้อแนะนำ]
@@ -168,7 +192,7 @@ ${modeBlock}
 
 ${toneBlock}
 
-${lengthBlock}${detailBlock}${specialBlock}
+${lengthBlock}${detailBlock}${specialBlock}${formatBlock}
 
 ${ctaBlock}
 
@@ -216,6 +240,12 @@ ${outputFormat}
     { value: "ดราม่า", icon: <Flame size={16} strokeWidth={1.5} />, label: "สไตล์ดราม่า", desc: "เร้าอารมณ์ เรียกยอดวิว" },
     { value: "ภาพยนตร์", icon: <Film size={16} strokeWidth={1.5} />, label: "อ้างอิงภาพยนตร์", desc: "ยกตัวอย่างจากหนัง/ซีรีส์" },
     { value: "การ์ตูน", icon: <Tv size={16} strokeWidth={1.5} />, label: "อ้างอิงการ์ตูน", desc: "ยกตัวอย่างจากอนิเมะ" },
+    { value: "บุคคลสำคัญ", icon: <Atom size={16} strokeWidth={1.5} />, label: "อ้างอิงบุคคลสำคัญ", desc: "นักวิทย์/นักคณิตศาสตร์" },
+  ];
+
+  const formatOptions: { value: string; icon: React.ReactNode; label: string; desc: string }[] = [
+    { value: "ต่อเนื่อง", icon: <AlignJustify size={16} strokeWidth={1.5} />, label: "บทความยาวต่อเนื่อง", desc: "ย่อหน้ายาว ลื่นไหล" },
+    { value: "เว้นบรรทัด", icon: <AlignLeft size={16} strokeWidth={1.5} />, label: "เว้นบรรทัดอ่านง่าย", desc: "ประโยคสั้น สแกนเร็ว" },
   ];
 
   const lengths: { value: string; icon: React.ReactNode; label: string; words: string }[] = [
@@ -420,6 +450,37 @@ ${outputFormat}
                 </div>
               </div>
 
+              {/* Writing Format */}
+              <div className="field-group">
+                <label className="field-label">
+                  รูปแบบการเขียนเนื้อหา
+                  <span className="opacity-50 text-[10px] ml-1">(เลือก 1 แบบ)</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {formatOptions.map((f) => {
+                    const isActive = writingFormat === f.value;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setWritingFormat(f.value)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all duration-300 ${
+                          isActive
+                            ? "bg-[#ffb789]/10 border-[#ffb789] text-[#ffb789]"
+                            : "bg-bg-elevated/60 border-transparent opacity-70 hover:opacity-100"
+                        }`}
+                      >
+                        <span className={isActive ? "text-[#ffb789]" : "text-tertiary"}>{f.icon}</span>
+                        <div className="leading-tight flex-1 min-w-0">
+                          <p className="text-micro font-bold truncate">{f.label}</p>
+                          <p className="text-[9px] opacity-60 truncate">{f.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Detail Input */}
               <div className="field-group">
                 <label className="field-label">ข้อมูลเพิ่มเติม <span className="opacity-50 text-[10px] ml-1">(ออปชันเสริม)</span></label>
@@ -503,17 +564,79 @@ ${outputFormat}
                     key="empty"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="h-full flex flex-col items-center justify-center space-y-6 pt-20"
+                    className="h-full flex flex-col items-center justify-center space-y-8 pt-16"
                   >
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-[#ffb789]/20 blur-3xl animate-pulse rounded-full" />
-                      <div className="w-24 h-24 rounded-3xl bg-bg-elevated flex items-center justify-center border border-white/5 relative z-10 rotate-3 group-hover:rotate-0 transition-transform duration-700">
-                        <Wand2 size={40} className="text-[#ffb789] opacity-40" />
+                    {/* Orbit System */}
+                    <div className="relative w-44 h-44 flex items-center justify-center">
+
+                      {/* Ambient glow */}
+                      <div className="absolute inset-4 bg-[#ffb789]/15 blur-3xl animate-pulse rounded-full" />
+
+                      {/* Dashed orbit ring */}
+                      <div
+                        className="absolute rounded-full border border-dashed border-[#ffb789]/25"
+                        style={{ width: 128, height: 128, top: 24, left: 24 }}
+                      />
+
+                      {/* Center icon */}
+                      <div className="w-20 h-20 rounded-2xl flex items-center justify-center relative z-10 shadow-xl"
+                        style={{
+                          background: "var(--color-bg-elevated)",
+                          border: "1px solid rgba(255,183,137,0.18)",
+                          boxShadow: "0 0 32px rgba(255,183,137,0.12)",
+                        }}
+                      >
+                        <motion.div
+                          animate={{ rotate: [0, 10, -8, 6, 0] }}
+                          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          <Wand2 size={36} style={{ color: "#ffb789", opacity: 0.7 }} />
+                        </motion.div>
                       </div>
+
+                      {/* Orbiting icons */}
+                      {(
+                        [
+                          { Icon: Calculator, initialDeg: 0,   color: "#ffb789", label: "คำนวณ" },
+                          { Icon: BookOpen,   initialDeg: 120,  color: "#ffd1b3", label: "อ่าน"  },
+                          { Icon: Pencil,     initialDeg: 240,  color: "#e8955f", label: "เขียน" },
+                        ] as const
+                      ).map(({ Icon, initialDeg, color }) => (
+                        <motion.div
+                          key={initialDeg}
+                          className="absolute inset-0"
+                          style={{ rotate: initialDeg }}
+                          animate={{ rotate: initialDeg + 360 }}
+                          transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+                        >
+                          {/* Icon positioned at top of orbit radius */}
+                          <div
+                            className="absolute left-1/2"
+                            style={{ top: 6, transform: "translateX(-50%)" }}
+                          >
+                            <motion.div
+                              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md"
+                              style={{
+                                background: "var(--color-bg-secondary)",
+                                border: `1px solid ${color}30`,
+                                boxShadow: `0 4px 16px ${color}22`,
+                                rotate: -initialDeg,
+                              }}
+                              animate={{ rotate: -(initialDeg + 360) }}
+                              transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+                            >
+                              <Icon size={15} style={{ color }} strokeWidth={1.75} />
+                            </motion.div>
+                          </div>
+                        </motion.div>
+                      ))}
                     </div>
+
                     <div className="text-center space-y-2">
                       <h3 className="heading-lg font-bold">รอการสร้างสรรค์...</h3>
-                      <p className="text-tertiary text-body max-w-[280px]">กรอกข้อมูลด้านซ้ายเพื่อรับ Prompt ในสไตล์ครูฮีมที่ไม่เหมือนใคร</p>
+                      <p className="text-body max-w-[280px] mx-auto" style={{ color: "var(--color-text-tertiary)" }}>
+                        กรอกข้อมูลด้านซ้ายเพื่อรับ Prompt ในสไตล์ครูฮีมที่ไม่เหมือนใคร
+                      </p>
                     </div>
                   </motion.div>
                 )}
