@@ -11,36 +11,16 @@ import {
   Info,
   MessageCircleQuestionMark,
   Pencil,
+  Shuffle,
   Trash2,
   Wand2,
 } from "lucide-react";
-import { useState } from "react";
 import type { BuildResult } from "@/lib/prompt/build";
+import type { CopyState } from "./Builder";
 import { labelOf } from "@/lib/prompt/defaults";
 import { NEED_LABEL } from "@/lib/prompt/options";
 import type { BuilderConfig, HistoryEntry } from "@/lib/prompt/types";
 import { Notice } from "../ui";
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
 
 function EmptyState() {
   return (
@@ -151,31 +131,26 @@ function HistoryList({ history, onDelete, onClear }: { history: HistoryEntry[]; 
 export default function PromptPanel({
   cfg,
   result,
+  copied,
+  onCopy,
   recentWarnings,
   justCopied,
+  autoRolled,
   history,
-  onCopied,
   onDeleteHistory,
   onClearHistory,
 }: {
   cfg: BuilderConfig;
   result: BuildResult | null;
+  copied: CopyState;
+  onCopy: () => void;
   recentWarnings: string[];
   justCopied: boolean;
+  autoRolled: boolean;
   history: HistoryEntry[];
-  onCopied: () => void;
   onDeleteHistory: (id: string) => void;
   onClearHistory: () => void;
 }) {
-  const [copied, setCopied] = useState<"ok" | "fail" | null>(null);
-
-  async function handleCopy() {
-    if (!result) return;
-    const ok = await copyText(result.prompt);
-    setCopied(ok ? "ok" : "fail");
-    if (ok) onCopied();
-    setTimeout(() => setCopied(null), 2200);
-  }
 
   return (
     <div className="space-y-4">
@@ -192,7 +167,7 @@ export default function PromptPanel({
               )}
             </div>
           </div>
-          <button type="button" className="btn-copy" onClick={handleCopy} disabled={!result}>
+          <button type="button" className="btn-copy" onClick={onCopy} disabled={!result}>
             {copied === "ok" ? (
               <>
                 <Check size={16} /> คัดลอกแล้ว
@@ -225,20 +200,26 @@ export default function PromptPanel({
               <span className="tag">{labelOf("tone", cfg.tonePrimary)}</span>
             </div>
 
-            {result.missing.length > 0 && (
-              <Notice kind="warn" icon={<MessageCircleQuestionMark size={15} />}>
-                แพตเทิร์นที่เลือกต้องใช้ <b>{result.missing.map((n) => NEED_LABEL[n]).join(" · ")}</b> แต่ครูยังไม่ได้กรอกในขั้นที่ 2
-                คำสั่งจึงให้ Claude ถามครูก่อนเขียน กันไม่ให้แต่งเรื่องขึ้นเอง
+            {autoRolled && (
+              <Notice kind="ok" icon={<Shuffle size={15} />}>
+                เริ่มโพสต์ใหม่ แอปสุ่มแพตเทิร์นชุดใหม่ให้แล้ว ไม่ซ้ำโพสต์ก่อน ไม่ถูกใจกดปุ่มสไตล์ในขั้นที่ 1 ได้
               </Notice>
             )}
-            {result.missing.length === 0 && result.interviewing && (
+            {result.unmet.length > 0 && (
+              <Notice kind="info" icon={<MessageCircleQuestionMark size={15} />}>
+                แพตเทิร์นนี้จะดีขึ้นถ้ามี <b>{result.unmet.map((n) => NEED_LABEL[n]).join(" · ")}</b>
+                {result.unmet.includes("timing") ? " (กดเลือกช่วงเวลาในขั้นที่ 2)" : " (พิมพ์สั้นๆ ในขั้นที่ 2)"}
+                {" "}ถ้าไม่ใส่ก็ได้ คำสั่งจะให้เขียนแบบภาพรวม ไม่แต่งเคสขึ้นเอง
+              </Notice>
+            )}
+            {result.interviewing && (
               <Notice kind="info" icon={<MessageCircleQuestionMark size={15} />}>
                 เปิดโหมดสัมภาษณ์อยู่ Claude จะถามครู 3–5 ข้อก่อน แล้วค่อยเขียน
               </Notice>
             )}
             {justCopied && (
               <Notice kind="ok" icon={<Check size={15} />}>
-                บันทึกแพตเทิร์นนี้ลงประวัติแล้ว โพสต์ถัดไปกดปุ่มลัดในขั้นที่ 3 แอปจะเลือกชุดใหม่ที่ไม่ซ้ำให้
+                บันทึกแพตเทิร์นนี้ลงประวัติแล้ว โพสต์ถัดไปแค่เปลี่ยนหัวข้อ แอปจะสุ่มแพตเทิร์นใหม่ที่ไม่ซ้ำให้เอง
               </Notice>
             )}
             {recentWarnings.map((w) => (

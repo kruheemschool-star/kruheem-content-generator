@@ -3,8 +3,10 @@ import {
   ARCS,
   AUDIENCES,
   AUTO_OPENING,
+  BELIEF_OPTIONS,
   CTAS,
   DEPTHS,
+  DONT_OPTIONS,
   EMOJI_LEVELS,
   ENDINGS,
   EXTRAS,
@@ -13,19 +15,16 @@ import {
   LENGTHS,
   OPENINGS,
   PARENT_TYPES,
+  TIMINGS,
   TONES,
   byId,
 } from "./options";
 import type { BuilderConfig, Material, VoiceProfile } from "./types";
 
 export const EMPTY_MATERIAL: Material = {
-  story: "",
-  quote: "",
-  number: "",
-  stance: "",
-  mistake: "",
+  detail: "",
   timing: "",
-  extra: "",
+  frequent: false,
 };
 
 export const DEFAULT_CONFIG: BuilderConfig = {
@@ -49,6 +48,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
   extras: [],
   ctas: ["comment"],
   interview: false,
+  lean: "any",
 };
 
 export const DEFAULT_VOICE: VoiceProfile = {
@@ -56,7 +56,9 @@ export const DEFAULT_VOICE: VoiceProfile = {
   particle: "ครับ",
   studentCall: "หนูๆ",
   catchphrases: "",
+  beliefIds: [],
   beliefs: "",
+  dontIds: [],
   donts: "",
   samplePosts: "",
   products: "คอร์สเรียน VOD และคลังข้อสอบออนไลน์ที่ kruheemmath.com",
@@ -88,15 +90,7 @@ export function normalizeConfig(raw: unknown): BuilderConfig {
     audience: oneOf(r.audience, ids(AUDIENCES), d.audience) as BuilderConfig["audience"],
     grade: oneOf(r.grade, ["", ...GRADES], d.grade),
     parentType: oneOf(r.parentType, ["", ...ids(PARENT_TYPES)], d.parentType),
-    material: {
-      story: str(m.story, ""),
-      quote: str(m.quote, ""),
-      number: str(m.number, ""),
-      stance: str(m.stance, ""),
-      mistake: str(m.mistake, ""),
-      timing: str(m.timing, ""),
-      extra: str(m.extra, ""),
-    },
+    material: normalizeMaterial(m),
     opening: oneOf(r.opening, [AUTO_OPENING, ...openingIds], d.opening),
     extraOpenings: extra.length === 3 ? extra : d.extraOpenings,
     arc: oneOf(r.arc, ids(ARCS), d.arc),
@@ -112,6 +106,28 @@ export function normalizeConfig(raw: unknown): BuilderConfig {
     extras: subset(r.extras, ids(EXTRAS)),
     ctas: Array.isArray(r.ctas) ? subset(r.ctas, ids(CTAS)) : d.ctas,
     interview: r.interview === true,
+    lean: oneOf(r.lean, ["emotion", "direct", "any"], d.lean) as BuilderConfig["lean"],
+  };
+}
+
+// รุ่นก่อนมีช่องวัตถุดิบ 7 ช่อง ถ้ายังมีข้อความค้างอยู่ ให้รวมเข้าช่องรายละเอียดช่องเดียว
+const OLD_MATERIAL_KEYS = ["story", "quote", "number", "stance", "mistake", "extra"];
+
+function normalizeMaterial(m: Record<string, unknown>): Material {
+  const timingIds = ids(TIMINGS);
+  let detail = str(m.detail, "");
+  if (!detail) {
+    // ช่วงเวลาแบบเก่าเป็นข้อความพิมพ์เอง ถ้าไม่ตรงปุ่มไหน ให้เก็บไว้ในรายละเอียดด้วย
+    const oldTiming = typeof m.timing === "string" && !timingIds.includes(m.timing) ? m.timing : "";
+    detail = [...OLD_MATERIAL_KEYS.map((k) => str(m[k], "")), oldTiming]
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return {
+    detail,
+    timing: oneOf(m.timing, ["", ...timingIds], ""),
+    frequent: m.frequent === true,
   };
 }
 
@@ -123,7 +139,9 @@ export function normalizeVoice(raw: unknown): VoiceProfile {
     particle: str(r.particle, d.particle),
     studentCall: str(r.studentCall, d.studentCall),
     catchphrases: str(r.catchphrases, d.catchphrases),
+    beliefIds: subset(r.beliefIds, ids(BELIEF_OPTIONS)),
     beliefs: str(r.beliefs, d.beliefs),
+    dontIds: subset(r.dontIds, ids(DONT_OPTIONS)),
     donts: str(r.donts, d.donts),
     samplePosts: str(r.samplePosts, d.samplePosts),
     products: str(r.products, d.products),
@@ -131,7 +149,7 @@ export function normalizeVoice(raw: unknown): VoiceProfile {
 }
 
 export function isVoiceSetUp(v: VoiceProfile): boolean {
-  return v.beliefs.trim() !== "" || v.samplePosts.trim() !== "";
+  return v.beliefIds.length > 0 || v.beliefs.trim() !== "" || v.samplePosts.trim() !== "";
 }
 
 export function labelOf(kind: "opening" | "arc" | "ending" | "tone", id: string): string {

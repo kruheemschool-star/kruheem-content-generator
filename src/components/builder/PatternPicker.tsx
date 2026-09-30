@@ -1,8 +1,8 @@
 "use client";
 
-import { Dice5, HeartPulse, RefreshCw, Sparkles, Zap } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { ARCS, AUTO_OPENING, ENDINGS, NEED_LABEL, OPENINGS, endingFits, forAudience } from "@/lib/prompt/options";
-import { RECENT_OPENINGS, hasNeed, recentIds, type Lean } from "@/lib/prompt/randomize";
+import { RECENT_OPENINGS, hasNeed, recentIds } from "@/lib/prompt/randomize";
 import { labelOf } from "@/lib/prompt/defaults";
 import type { BuilderConfig, HistoryEntry, PatternOption } from "@/lib/prompt/types";
 import { OptionCard, SubLabel } from "../ui";
@@ -27,8 +27,11 @@ function Tags({
   return (
     <>
       {o.needs && (
-        <span className={`tag need ${needMissing ? "missing" : ""}`} title={needMissing ? "ยังไม่ได้กรอก Claude จะถามครูก่อนเขียน" : "มีวัตถุดิบแล้ว"}>
-          ใช้{NEED_LABEL[o.needs]}
+        <span
+          className={`tag need ${needMissing ? "missing" : ""}`}
+          title={needMissing ? "ไม่ใส่ก็ได้ จะเขียนแบบภาพรวมแทน ไม่แต่งเคส" : "มีข้อมูลแล้ว"}
+        >
+          {needMissing ? `ดีขึ้นถ้ามี${NEED_LABEL[o.needs]}` : `ใช้${NEED_LABEL[o.needs]}ของครู`}
         </span>
       )}
       {rank > 0 && <span className="tag recent">ใช้เมื่อ {rank} โพสต์ก่อน</span>}
@@ -40,13 +43,11 @@ export default function PatternPicker({
   cfg,
   history,
   onPick,
-  onPreset,
   onReroll,
 }: {
   cfg: BuilderConfig;
   history: HistoryEntry[];
   onPick: (patch: Partial<BuilderConfig>) => void;
-  onPreset: (lean: Lean) => void;
   onReroll: () => void;
 }) {
   const arcs = forAudience(ARCS, cfg.audience);
@@ -55,24 +56,6 @@ export default function PatternPicker({
 
   return (
     <>
-      <div>
-        <SubLabel hint="กดแล้วแอปเลือกให้ทั้งชุด โดยเลี่ยงแพตเทิร์นที่เพิ่งใช้">ลัดเลือก</SubLabel>
-        <div className="grid grid-cols-3 gap-2">
-          <button type="button" className="preset-btn" onClick={() => onPreset("emotion")}>
-            <HeartPulse size={16} />
-            <span className="text-[0.72rem]">เปิดด้วยอารมณ์</span>
-          </button>
-          <button type="button" className="preset-btn" onClick={() => onPreset("direct")}>
-            <Zap size={16} />
-            <span className="text-[0.72rem]">เข้าเรื่องทันที</span>
-          </button>
-          <button type="button" className="preset-btn" onClick={() => onPreset("any")}>
-            <Dice5 size={16} />
-            <span className="text-[0.72rem]">สุ่มทั้งชุด</span>
-          </button>
-        </div>
-      </div>
-
       <div>
         <SubLabel
           hint={
@@ -91,7 +74,7 @@ export default function PatternPicker({
             onClick={() => onPick({ opening: AUTO_OPENING })}
             lead={<Sparkles size={13} />}
             title="ให้ Claude เลือก"
-            desc="ส่ง 3 แบบที่ไม่ซ้ำโพสต์ล่าสุด ให้ Claude เลือกแบบที่เข้ากับวัตถุดิบ"
+            desc="ส่ง 3 แบบที่ไม่ซ้ำโพสต์ล่าสุด ให้ Claude เลือกแบบที่เข้ากับเรื่อง"
           />
           {OPENINGS.map((o) => (
             <OptionCard

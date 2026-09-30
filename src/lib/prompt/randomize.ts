@@ -1,7 +1,7 @@
 import { ARCS, ENDINGS, OPENINGS, TONES, endingFits, forAudience } from "./options";
-import type { Audience, BuilderConfig, HistoryEntry, Material, PatternOption } from "./types";
+import type { Audience, BuilderConfig, HistoryEntry, Lean, Material, Need, PatternOption } from "./types";
 
-export type Lean = "emotion" | "direct" | "any";
+export type { Lean };
 
 /** จำนวนโพสต์ล่าสุดที่ห้ามใช้ชิ้นเดิมซ้ำ */
 export const RECENT_OPENINGS = 5;
@@ -17,18 +17,25 @@ interface Ctx {
   history: HistoryEntry[];
 }
 
-export function hasNeed(material: Material, o: { needs?: keyof Material }): boolean {
-  return !o.needs || material[o.needs].trim() !== "";
+/** ข้อมูลที่แพตเทิร์นต้องใช้ ครูให้มาแล้วหรือยัง (ช่วงเวลามาจากปุ่มกด ที่เหลือมาจากช่องรายละเอียด) */
+export function hasNeed(material: Material, o: { needs?: Need }): boolean {
+  if (!o.needs) return true;
+  if (o.needs === "timing") return material.timing !== "";
+  return material.detail.trim() !== "";
 }
 
 export function recentIds(history: HistoryEntry[], key: "opening" | "arc" | "ending" | "tone", n: number): string[] {
   return history.slice(0, n).map((h) => h[key]);
 }
 
-// มีวัตถุดิบรองรับ = น่าเลือกที่สุด / ไม่ต้องใช้วัตถุดิบ = ปกติ / ต้องใช้แต่ยังไม่มี = สุ่มเจอได้แต่น้อย (Claude จะต้องถามก่อน)
+// มีข้อมูลรองรับ = น่าเลือกที่สุด / ไม่ต้องใช้ข้อมูล = ปกติ / ต้องใช้แต่ยังไม่มี = สุ่มเจอน้อยลง (จะเขียนแบบภาพรวมแทน)
 function weight(o: PatternOption, material: Material): number {
   if (!o.needs) return 2;
-  return hasNeed(material, o) ? 3 : 0.5;
+  return hasNeed(material, o) ? 3 : 1;
+}
+
+export function pickOne<T>(items: T[]): T | undefined {
+  return items.length ? items[Math.floor(Math.random() * items.length)] : undefined;
 }
 
 function pickWeighted<T>(items: T[], w: (t: T) => number): T | undefined {
@@ -103,6 +110,7 @@ export function randomizeCombo(cfg: BuilderConfig, history: HistoryEntry[], lean
   const ctx: Ctx = { audience: cfg.audience, material: cfg.material, history };
   const opening = pickOpenings(1, ctx, [], lean)[0];
   return {
+    lean,
     opening,
     extraOpenings: pickOpenings(3, ctx, [opening]),
     arc: pickArc(ctx, lean),

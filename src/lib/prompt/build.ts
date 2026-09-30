@@ -4,21 +4,25 @@ import {
   ANALOGY_SOURCES,
   ARCS,
   AUTO_OPENING,
+  BELIEF_OPTIONS,
   CTAS,
   DEPTHS,
+  DONT_OPTIONS,
   EMOJI_LEVELS,
   ENDINGS,
   EXTRAS,
   FORMATS,
   LENGTHS,
-  MATERIAL_FIELDS,
+  NEED_QUESTIONS,
   OPENINGS,
   PARENT_TYPES,
+  TIMINGS,
   TONES,
   byId,
   endingFits,
 } from "./options";
-import type { BuilderConfig, Need, PatternOption, VoiceProfile } from "./types";
+import { hasNeed } from "./randomize";
+import type { BuilderConfig, Material, Need, PatternOption, VoiceProfile } from "./types";
 
 export type OpeningMode = "single" | "choose" | "versions";
 
@@ -26,7 +30,8 @@ export interface BuildResult {
   prompt: string;
   openingMode: OpeningMode;
   openingIds: string[];
-  missing: Need[];
+  /** แพตเทิร์นที่อยากได้ข้อมูลจริงแต่ครูไม่ได้ให้ (คำสั่งจะใช้แบบภาพรวมแทน) */
+  unmet: Need[];
   interviewing: boolean;
   notes: string[];
 }
@@ -73,13 +78,17 @@ function fill(text: string, products: string): string {
   return text.replaceAll("{products}", products);
 }
 
-function describe(o: PatternOption, products: string): string {
+function describe(o: PatternOption, products: string, material: Material): string {
+  if (o.needs && o.fallback) {
+    if (!hasNeed(material, o)) return `${o.label} ▸ ${fill(o.fallback, products)}`;
+    return `${o.label} ▸ ${fill(o.instruction, products)} ถ้าข้อมูลของครูไม่มีสิ่งที่ต้องใช้ ให้ทำแบบนี้แทน: ${fill(o.fallback, products)}`;
+  }
   return `${o.label} ▸ ${fill(o.instruction, products)}`;
 }
 
 function collectNeeds(cfg: BuilderConfig, mode: OpeningMode, openingIds: string[]): Need[] {
   const needs = new Set<Need>();
-  // โหมดให้ Claude เลือก จะเลือกแบบที่วัตถุดิบรองรับเอง ไม่ต้องบังคับถาม
+  // โหมดให้ Claude เลือก จะเลือกแบบที่ข้อมูลของครูรองรับเอง ไม่ต้องบังคับถาม
   if (mode !== "choose") {
     for (const id of openingIds) {
       const n = byId(OPENINGS, id)?.needs;
@@ -105,8 +114,9 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   const topic = cfg.topic.trim();
 
   const { mode: openingMode, ids: openingIds } = resolveOpenings(cfg);
-  const missing = collectNeeds(cfg, openingMode, openingIds).filter((n) => cfg.material[n].trim() === "");
-  const interviewing = cfg.interview || missing.length > 0;
+  const needs = collectNeeds(cfg, openingMode, openingIds);
+  const unmet = needs.filter((n) => !hasNeed(cfg.material, { needs: n }));
+  const interviewing = cfg.interview;
   const notes: string[] = [];
 
   const arc = byId(ARCS, cfg.arc)!;
@@ -130,19 +140,17 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
       "อ่านคำสั่งให้ครบก่อนเริ่ม ถ้ามีสองข้อที่ดูขัดกัน ให้ยึดกติกาข้อมูลจริงกับรายการห้ามเป็นหลัก",
   );
 
-  // ── ขั้นสัมภาษณ์ ──
+  // ── ขั้นสัมภาษณ์ (ครูเลือกเปิดเอง) ──
   if (interviewing) {
-    const asks = missing.length
-      ? missing.map((n) => MATERIAL_FIELDS.find((f) => f.id === n)!.question)
-      : MATERIAL_FIELDS.filter((f) => f.question && cfg.material[f.id].trim() === "").map((f) => f.question);
-    const must = missing.length ? "ต้องถามเรื่องต่อไปนี้ เพราะแพตเทิร์นที่เลือกต้องใช้:" : "เลือกถามเฉพาะเรื่องที่เข้ากับหัวข้อนี้ จากรายการนี้:";
+    const wanted = needs.filter((n): n is Exclude<Need, "timing"> => n !== "timing");
+    const rest = (Object.keys(NEED_QUESTIONS) as Exclude<Need, "timing">[]).filter((n) => !wanted.includes(n));
+    const asks = [...wanted, ...rest].map((n) => NEED_QUESTIONS[n]);
     parts.push(
       section(
         "ขั้นที่ 1 ถามครูก่อน ยังไม่ต้องเขียนโพสต์",
-        `โพสต์นี้ต้องมีเรื่องจริงของครูฮีม ถ้าไม่มี คุณจะต้องแต่งขึ้นเอง และคุณพ่อคุณแม่ที่ติดตามครูจะจับได้ ขั้นแรกจึงให้ถามครูสั้นๆ 3–5 ข้อในข้อความเดียว ตอบง่าย แล้วหยุดรอคำตอบ\n` +
-          `${must}\n${lines(asks)}\n` +
-          "ถามเพิ่มได้เฉพาะสิ่งที่จะทำให้โพสต์เจาะจงขึ้น ห้ามถามสิ่งที่ครูให้มาแล้วในวัตถุดิบ\n" +
-          'เมื่อครูตอบแล้ว ค่อยทำขั้นที่ 2 คือเขียนโพสต์ตามคำสั่งทั้งหมดข้างล่าง ถ้าครูข้ามคำถามไหน ให้เขียนโดยไม่ใช้ส่วนนั้น ห้ามแต่งแทน และถ้าวิธีเปิดที่กำหนดต้องใช้ข้อมูลที่ครูไม่ได้ให้ ให้เปลี่ยนไปเปิดแบบ "เข้าเรื่องทันที" แทน',
+        "ครูอยากให้โพสต์นี้ลึกและมีเรื่องจริงของครูฮีม ขั้นแรกให้ถามครูสั้นๆ 3–5 ข้อในข้อความเดียว ตอบง่าย ตอบแบบพูดได้ แล้วหยุดรอคำตอบ\n" +
+          `เลือกถามจากรายการนี้ ข้อต้นๆ สำคัญกว่า และข้ามข้อที่ครูให้มาแล้วในข้อมูลจริง:\n${lines(asks)}\n` +
+          "เมื่อครูตอบแล้ว ค่อยทำขั้นที่ 2 คือเขียนโพสต์ตามคำสั่งทั้งหมดข้างล่าง ถ้าครูข้ามคำถามไหน ให้เขียนโดยไม่ใช้ส่วนนั้น ห้ามแต่งแทน",
       ),
     );
   }
@@ -155,11 +163,17 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
       ? `ลงท้ายด้วย "${voice.particle.trim()}" แบบคนพูดจริง ไม่ต้องทุกประโยค`
       : "ไม่ต้องใส่คำลงท้ายสุภาพ",
   ];
-  const beliefs = splitList(voice.beliefs);
+  const beliefs = [
+    ...BELIEF_OPTIONS.filter((b) => voice.beliefIds.includes(b.id)).map((b) => b.label),
+    ...splitList(voice.beliefs),
+  ];
   if (beliefs.length) who.push(`ความเชื่อของครูฮีม ใช้เป็นเข็มทิศของเนื้อหา ไม่ต้องยกมาพูดตรงๆ ทุกข้อ:\n${lines(beliefs)}`);
   const catchphrases = splitList(voice.catchphrases);
   if (catchphrases.length) who.push(`คำติดปากที่ครูใช้จริง ใส่ได้หนึ่งหรือสองคำถ้าเข้ากับจังหวะ ไม่ต้องใช้ครบ:\n${lines(catchphrases)}`);
-  const donts = splitList(voice.donts);
+  const donts = [
+    ...DONT_OPTIONS.filter((d) => voice.dontIds.includes(d.id)).map((d) => d.label),
+    ...splitList(voice.donts),
+  ];
   if (donts.length) who.push(`สิ่งที่ครูฮีมไม่ทำ:\n${lines(donts)}`);
   parts.push(section("ครูฮีมคือใคร", who.join("\n")));
 
@@ -181,19 +195,24 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   if (pt) readerLines.push(`ผู้อ่านโพสต์นี้คือ${pt.instruction} เขียนให้คนกลุ่มนี้รู้สึกว่าโพสต์นี้เขียนถึงเขาโดยตรง`);
   parts.push(section("เขียนให้ใครอ่าน", lines(readerLines)));
 
-  // ── วัตถุดิบ ──
-  const filled = MATERIAL_FIELDS.filter((f) => cfg.material[f.id].trim() !== "");
-  const materialBody = filled.length
-    ? filled.map((f) => `- ${f.label}: ${cfg.material[f.id].trim()}`).join("\n") +
-      "\nครูเขียนวัตถุดิบแบบพูดมา เก็บรายละเอียดจริงไว้ให้ครบ แต่เรียบเรียงใหม่เป็นภาษาของโพสต์ได้"
+  // ── ข้อมูลจริง ──
+  const facts: string[] = [];
+  if (cfg.material.detail.trim()) facts.push(`รายละเอียดจากครู: ${cfg.material.detail.trim()}`);
+  const timing = cfg.material.timing ? byId(TIMINGS, cfg.material.timing) : undefined;
+  if (timing) facts.push(`ช่วงเวลาตอนนี้: ${timing.instruction}`);
+  if (cfg.material.frequent) {
+    facts.push("ครูยืนยันว่าเจอปัญหานี้กับนักเรียนบ่อยจริง พูดได้ว่าครูเห็นบ่อย แต่ห้ามใส่จำนวนหรือเคสเฉพาะที่ครูไม่ได้เล่า");
+  }
+  const materialBody = facts.length
+    ? lines(facts) + "\nครูพิมพ์มาแบบพูด เก็บรายละเอียดจริงไว้ให้ครบ แต่เรียบเรียงใหม่เป็นภาษาของโพสต์ได้"
     : interviewing
-      ? "ครูยังไม่ได้ให้วัตถุดิบ จะได้จากคำตอบในขั้นที่ 1"
-      : "ครูไม่ได้ให้วัตถุดิบมา ให้เขียนจากความรู้คณิตศาสตร์และภาพรวมเท่านั้น ห้ามเล่าเหตุการณ์หรือเคสเฉพาะเหมือนครูเจอมาเอง";
+      ? "ครูยังไม่ได้ให้ข้อมูล จะได้จากคำตอบในขั้นที่ 1"
+      : "ครูไม่ได้ให้ข้อมูลเพิ่ม ให้เขียนจากความรู้คณิตศาสตร์และภาพรวมเท่านั้น ห้ามเล่าเหตุการณ์หรือเคสเฉพาะเหมือนครูเจอมาเอง";
   parts.push(
     section(
-      "วัตถุดิบจริงจากครูฮีม",
+      "ข้อมูลจริงจากครูฮีม",
       materialBody +
-        "\n\nกติกาข้อมูล (สำคัญที่สุด): ใช้ข้อเท็จจริงเฉพาะที่อยู่ในวัตถุดิบของครู หรือความรู้คณิตศาสตร์ที่ถูกต้อง ห้ามแต่งตัวเลขสถิติ เปอร์เซ็นต์ งานวิจัย ชื่อคน ชื่อโรงเรียน ผลสอบ หรือเหตุการณ์ในห้องเรียนที่ครูไม่ได้เล่า ถ้าต้องพูดถึงเด็ก ให้พูดแบบภาพรวม เช่น เด็กหลายคน แทนการแต่งเคส ถ้าไม่แน่ใจว่าข้อมูลไหนจริง ให้ตัดทิ้ง\n" +
+        "\n\nกติกาข้อมูล (สำคัญที่สุด): ใช้ข้อเท็จจริงเฉพาะที่อยู่ในข้อมูลของครู หรือความรู้คณิตศาสตร์ที่ถูกต้อง ห้ามแต่งตัวเลขสถิติ เปอร์เซ็นต์ งานวิจัย ชื่อคน ชื่อโรงเรียน ผลสอบ หรือเหตุการณ์ในห้องเรียนที่ครูไม่ได้เล่า ถ้าต้องพูดถึงเด็ก ให้พูดแบบภาพรวม เช่น เด็กหลายคน แทนการแต่งเคส ถ้าไม่แน่ใจว่าข้อมูลไหนจริง ให้ตัดทิ้ง\n" +
         "เหตุผล: ผู้ติดตามของครูเป็นผู้ปกครองที่ไว้ใจครู ถ้าเจอเรื่องแต่งแม้แต่ครั้งเดียว ความน่าเชื่อถือจะหายทั้งเพจ",
     ),
   );
@@ -202,13 +221,13 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   const openings = openingIds.map((id) => byId(OPENINGS, id)!).filter(Boolean);
   let openingBody: string;
   if (openingMode === "single") {
-    openingBody = describe(openings[0], products);
+    openingBody = describe(openings[0], products, cfg.material);
   } else if (openingMode === "choose") {
     openingBody =
-      "เลือกหนึ่งแบบจากสามแบบนี้ ที่วัตถุดิบรองรับและเข้ากับเรื่องที่สุด ถ้าแบบไหนต้องใช้เรื่องจริงแต่วัตถุดิบไม่มี ห้ามเลือกแบบนั้น\n" +
-      openings.map((o, i) => `${i + 1}. ${describe(o, products)}`).join("\n");
+      "เลือกหนึ่งแบบจากสามแบบนี้ ที่ข้อมูลของครูรองรับและเข้ากับเรื่องที่สุด\n" +
+      openings.map((o, i) => `${i + 1}. ${describe(o, products, cfg.material)}`).join("\n");
   } else {
-    openingBody = openings.map((o, i) => `เวอร์ชัน ${i + 1} เปิดแบบ ${describe(o, products)}`).join("\n");
+    openingBody = openings.map((o, i) => `เวอร์ชัน ${i + 1} เปิดแบบ ${describe(o, products, cfg.material)}`).join("\n");
   }
   openingBody += "\nไม่ว่าเปิดแบบไหน ห้ามทักทาย ห้ามแนะนำตัว ห้ามเกริ่นว่าโพสต์นี้จะพูดเรื่องอะไร";
   const recent = recentOpenings.map((s) => s.trim()).filter(Boolean).slice(0, MAX_RECENT_OPENINGS);
@@ -221,10 +240,10 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   parts.push(
     section(
       "โครงเรื่อง",
-      `${describe(arc, products)}\nนี่คือทิศทางของเรื่อง ไม่ใช่หัวข้อ ห้ามเขียนชื่อช่วงเป็นหัวข้อ สัดส่วนของแต่ละช่วงปรับตามเนื้อหาได้`,
+      `${describe(arc, products, cfg.material)}\nนี่คือทิศทางของเรื่อง ไม่ใช่หัวข้อ ห้ามเขียนชื่อช่วงเป็นหัวข้อ สัดส่วนของแต่ละช่วงปรับตามเนื้อหาได้`,
     ),
   );
-  parts.push(section("วิธีปิดโพสต์", describe(ending, products)));
+  parts.push(section("วิธีปิดโพสต์", describe(ending, products, cfg.material)));
 
   // ── น้ำเสียง ความลึก เทคนิค ──
   const tone1 = byId(TONES, cfg.tonePrimary)!;
@@ -241,7 +260,7 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   }
   for (const id of cfg.extras) {
     const x = byId(EXTRAS, id);
-    if (x) style.push(`${x.label} ▸ ${fill(x.instruction, products)}`);
+    if (x) style.push(describe(x, products, cfg.material));
   }
   parts.push(section("น้ำเสียงและความลึก", lines(style)));
 
@@ -351,7 +370,7 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
     prompt: parts.join("\n\n"),
     openingMode,
     openingIds,
-    missing,
+    unmet,
     interviewing,
     notes,
   };

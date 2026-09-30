@@ -1,62 +1,57 @@
 "use client";
 
-import { CircleAlert, CircleCheck, Download, Upload, UserRound } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, Download, Upload, UserRound } from "lucide-react";
 import { useRef, useState } from "react";
 import { isVoiceSetUp } from "@/lib/prompt/defaults";
+import { BELIEF_OPTIONS, DONT_OPTIONS, PARTICLES, SELF_NAMES, STUDENT_CALLS } from "@/lib/prompt/options";
 import type { VoiceProfile } from "@/lib/prompt/types";
 import { exportBackup, importBackup, useStore, voiceStore } from "@/lib/store";
-import { Notice } from "../ui";
+import { Chip, Notice, SubLabel } from "../ui";
 
-type Field = {
-  key: keyof VoiceProfile;
-  label: string;
-  hint: string;
-  placeholder: string;
-  rows?: number;
-};
+function countPosts(text: string): number {
+  return text
+    .split(/\n\s*-{3,}\s*\n/)
+    .map((s) => s.trim())
+    .filter(Boolean).length;
+}
 
-const SHORT_FIELDS: Field[] = [
-  { key: "selfName", label: "เรียกตัวเองว่า", hint: "ในโพสต์ครูแทนตัวเองว่าอะไร", placeholder: "ครู" },
-  { key: "particle", label: "คำลงท้าย", hint: "เว้นว่างถ้าไม่ใช้", placeholder: "ครับ" },
-  { key: "studentCall", label: "เรียกนักเรียนว่า", hint: "ใช้ตอนเขียนถึงนักเรียน", placeholder: "หนูๆ" },
-  { key: "products", label: "สิ่งที่ครูขาย", hint: "ใช้ตอนชวนคอร์สแบบบอกตรง", placeholder: "คอร์สเรียน VOD และคลังข้อสอบออนไลน์ที่ kruheemmath.com" },
-];
+function PickOne({ value, options, onChange, labelOf }: { value: string; options: string[]; onChange: (v: string) => void; labelOf?: (v: string) => string }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => (
+        <Chip key={o || "none"} active={value === o} onClick={() => onChange(o)}>
+          {labelOf ? labelOf(o) : o}
+        </Chip>
+      ))}
+    </div>
+  );
+}
 
-const LONG_FIELDS: Field[] = [
-  {
-    key: "beliefs",
-    label: "ความเชื่อหลักของครู",
-    hint: "บรรทัดละข้อ 3–5 ข้อ ส่วนนี้ทำให้เสียงเป็นของครูฮีม ไม่ใช่ครูคนไหนก็ได้",
-    placeholder: "เช่น สิ่งที่ครูเชื่อเรื่องการเรียนเลข สิ่งที่ครูย้ำกับผู้ปกครองบ่อยๆ\nบรรทัดละหนึ่งความเชื่อ",
-    rows: 5,
-  },
-  {
-    key: "catchphrases",
-    label: "คำติดปาก",
-    hint: "คำหรือวลีที่ครูพูดบ่อยจริงๆ บรรทัดละคำ",
-    placeholder: "คำที่ลูกศิษย์ได้ยินแล้วรู้ทันทีว่าเป็นครูฮีม",
-    rows: 3,
-  },
-  {
-    key: "donts",
-    label: "สิ่งที่ครูไม่ทำ",
-    hint: "บรรทัดละข้อ",
-    placeholder: "เช่น เรื่องที่ครูไม่พูดในเพจ น้ำเสียงที่ครูไม่ใช้",
-    rows: 3,
-  },
-];
+function PickMany({ selected, options, onToggle }: { selected: string[]; options: { id: string; label: string }[]; onToggle: (id: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = selected.includes(o.id);
+        return (
+          <Chip key={o.id} active={on} onClick={() => onToggle(o.id)}>
+            {on && <Check size={13} />} {o.label}
+          </Chip>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function VoiceProfileForm() {
   const [voice, setVoice] = useStore(voiceStore);
   const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const setupDone = isVoiceSetUp(voice);
-  const sampleCount = voice.samplePosts
-    .split(/\n\s*-{3,}\s*\n/)
-    .map((s) => s.trim())
-    .filter(Boolean).length;
+  const sampleCount = countPosts(voice.samplePosts);
 
-  const set = (key: keyof VoiceProfile, value: string) => setVoice((prev) => ({ ...prev, [key]: value }));
+  const set = <K extends keyof VoiceProfile>(key: K, value: VoiceProfile[K]) => setVoice((prev) => ({ ...prev, [key]: value }));
+  const toggleIn = (key: "beliefIds" | "dontIds", id: string) =>
+    setVoice((prev) => ({ ...prev, [key]: prev[key].includes(id) ? prev[key].filter((x) => x !== id) : [...prev[key], id] }));
 
   function download() {
     const blob = new Blob([JSON.stringify(exportBackup(), null, 2)], { type: "application/json" });
@@ -84,7 +79,7 @@ export default function VoiceProfileForm() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="surface p-6 space-y-4">
+      <div className="surface p-6 space-y-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent-soft)" }}>
             <UserRound size={20} className="text-accent" />
@@ -92,70 +87,94 @@ export default function VoiceProfileForm() {
           <div>
             <p className="heading-md">ตัวตนครูฮีม</p>
             <p className="text-micro" style={{ color: "var(--color-text-tertiary)" }}>
-              ตั้งครั้งเดียว ทุกคำสั่งจะดึงไปใช้เอง บันทึกอัตโนมัติทุกครั้งที่พิมพ์
+              กดเลือกครั้งเดียว ทุกคำสั่งจะดึงไปใช้เอง บันทึกอัตโนมัติ
             </p>
           </div>
         </div>
 
         {setupDone ? (
           <Notice kind="ok" icon={<CircleCheck size={16} />}>
-            ตั้งค่าตัวตนแล้ว {sampleCount > 0 ? `มีโพสต์ตัวอย่าง ${sampleCount} ชิ้น` : "ถ้าเพิ่มโพสต์จริงสัก 2–3 ชิ้น Claude จะจับจังหวะเสียงครูได้แม่นขึ้นมาก"}
+            ตั้งค่าตัวตนแล้ว{sampleCount > 0 ? ` มีโพสต์ตัวอย่าง ${sampleCount} ชิ้น` : ""}
           </Notice>
         ) : (
           <Notice kind="warn" icon={<CircleAlert size={16} />}>
-            <b>ยังไม่ได้ตั้งค่า</b> ตอนนี้คำสั่งรู้แค่ข้อมูลพื้นฐาน ใส่ความเชื่อหลักกับโพสต์จริงที่คนตอบรับดีสัก 2–3 ชิ้น
-            แล้วโพสต์ที่ได้จะเป็นเสียงครูฮีมจริงๆ ไม่ใช่เสียงครูทั่วไป
+            <b>ยังไม่ได้ตั้งค่า</b> กดเลือกความเชื่อที่ตรงกับครูสัก 3–5 ข้อข้างล่าง ใช้เวลาไม่ถึงนาที โพสต์ที่ได้จะเป็นเสียงครูฮีมจริงๆ
           </Notice>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {SHORT_FIELDS.map((f) => (
-            <div key={f.key} className={`field-group ${f.key === "products" ? "sm:col-span-2" : ""}`}>
-              <label className="field-label" htmlFor={`v-${f.key}`}>
-                {f.label} <span className="text-[0.68rem]" style={{ color: "var(--color-text-tertiary)" }}>· {f.hint}</span>
-              </label>
-              <input id={`v-${f.key}`} className="field-input" placeholder={f.placeholder} value={voice[f.key]} onChange={(e) => set(f.key, e.target.value)} />
-            </div>
-          ))}
-        </div>
-
-        {LONG_FIELDS.map((f) => (
-          <div key={f.key} className="field-group">
-            <label className="field-label" htmlFor={`v-${f.key}`}>
-              {f.label} <span className="text-[0.68rem]" style={{ color: "var(--color-text-tertiary)" }}>· {f.hint}</span>
-            </label>
-            <textarea id={`v-${f.key}`} className="field-textarea" rows={f.rows} placeholder={f.placeholder} value={voice[f.key]} onChange={(e) => set(f.key, e.target.value)} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <SubLabel>เรียกตัวเองว่า</SubLabel>
+            <PickOne value={voice.selfName} options={SELF_NAMES} onChange={(v) => set("selfName", v)} />
           </div>
-        ))}
-
-        <div className="field-group">
-          <label className="field-label" htmlFor="v-samplePosts">
-            โพสต์จริงของครู{" "}
-            <span className="text-[0.68rem]" style={{ color: "var(--color-text-tertiary)" }}>
-              · วางได้ 2–3 ชิ้น คั่นแต่ละชิ้นด้วยบรรทัด --- (Claude ใช้จับจังหวะเสียงเท่านั้น ถูกสั่งห้ามลอกประโยคและโครง)
-            </span>
-          </label>
-          <textarea
-            id="v-samplePosts"
-            className="field-textarea"
-            style={{ minHeight: 260 }}
-            placeholder={"วางโพสต์ชิ้นที่ 1\n---\nวางโพสต์ชิ้นที่ 2\n---\nวางโพสต์ชิ้นที่ 3"}
-            value={voice.samplePosts}
-            onChange={(e) => set("samplePosts", e.target.value)}
-          />
-          {sampleCount > 3 && (
-            <p className="text-[0.68rem]" style={{ color: "var(--color-warning)" }}>
-              ใส่มา {sampleCount} ชิ้น คำสั่งจะใช้แค่ 3 ชิ้นแรก เพื่อไม่ให้ยาวเกินไป
-            </p>
-          )}
+          <div>
+            <SubLabel>คำลงท้าย</SubLabel>
+            <PickOne value={voice.particle} options={PARTICLES} onChange={(v) => set("particle", v)} labelOf={(v) => v || "ไม่ใช้"} />
+          </div>
+          <div>
+            <SubLabel>เรียกนักเรียนว่า</SubLabel>
+            <PickOne value={voice.studentCall} options={STUDENT_CALLS} onChange={(v) => set("studentCall", v)} />
+          </div>
         </div>
+
+        <div>
+          <SubLabel hint="เลือกข้อที่ครูเชื่อจริง 3–5 ข้อ ส่วนนี้ทำให้เสียงเป็นของครูฮีม ไม่ใช่ครูคนไหนก็ได้">ความเชื่อหลักของครู</SubLabel>
+          <PickMany selected={voice.beliefIds} options={BELIEF_OPTIONS} onToggle={(id) => toggleIn("beliefIds", id)} />
+        </div>
+
+        <div>
+          <SubLabel>สิ่งที่ครูไม่ทำ</SubLabel>
+          <PickMany selected={voice.dontIds} options={DONT_OPTIONS} onToggle={(id) => toggleIn("dontIds", id)} />
+        </div>
+
+        <details className="rounded-xl p-4" style={{ background: "var(--color-bg-tertiary)" }}>
+          <summary className="cursor-pointer text-caption font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+            เพิ่มเติม (ไม่บังคับ) · พิมพ์ความเชื่อเอง คำติดปาก โพสต์จริง สิ่งที่ครูขาย
+          </summary>
+          <div className="space-y-4 mt-4">
+            <div className="field-group">
+              <label className="field-label" htmlFor="v-beliefs">ความเชื่อที่ไม่มีในปุ่ม · บรรทัดละข้อ</label>
+              <textarea id="v-beliefs" className="field-textarea" rows={2} value={voice.beliefs} onChange={(e) => set("beliefs", e.target.value)} />
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="v-catch">คำติดปากที่ครูพูดบ่อยจริง · บรรทัดละคำ</label>
+              <textarea id="v-catch" className="field-textarea" rows={2} value={voice.catchphrases} onChange={(e) => set("catchphrases", e.target.value)} />
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="v-donts">สิ่งที่ครูไม่ทำ ที่ไม่มีในปุ่ม · บรรทัดละข้อ</label>
+              <textarea id="v-donts" className="field-textarea" rows={2} value={voice.donts} onChange={(e) => set("donts", e.target.value)} />
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="v-samplePosts">
+                โพสต์จริงของครู · ก๊อปมาวางได้เลย 2–3 ชิ้น คั่นด้วยบรรทัด --- (Claude ใช้จับจังหวะเสียงเท่านั้น ห้ามลอก)
+              </label>
+              <textarea
+                id="v-samplePosts"
+                className="field-textarea"
+                style={{ minHeight: 180 }}
+                placeholder={"วางโพสต์ชิ้นที่ 1\n---\nวางโพสต์ชิ้นที่ 2"}
+                value={voice.samplePosts}
+                onChange={(e) => set("samplePosts", e.target.value)}
+              />
+              {sampleCount > 3 && (
+                <p className="text-[0.68rem]" style={{ color: "var(--color-warning)" }}>
+                  ใส่มา {sampleCount} ชิ้น คำสั่งจะใช้แค่ 3 ชิ้นแรก
+                </p>
+              )}
+            </div>
+            <div className="field-group">
+              <label className="field-label" htmlFor="v-products">สิ่งที่ครูขาย · ใช้ตอนชวนคอร์ส</label>
+              <input id="v-products" className="field-input" value={voice.products} onChange={(e) => set("products", e.target.value)} />
+            </div>
+          </div>
+        </details>
       </div>
 
       <div className="surface p-6 space-y-3">
         <p className="heading-md text-[0.95rem]">สำรองข้อมูล</p>
         <p className="text-micro" style={{ color: "var(--color-text-tertiary)" }}>
           ตัวตน ประวัติแพตเทิร์น และบรรทัดกันซ้ำ เก็บอยู่ในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ได้ส่งขึ้นเว็บ
-          ถ้าจะใช้อีกเครื่อง หรือกลัวข้อมูลหายตอนล้างเบราว์เซอร์ ให้กดสำรองแล้วนำเข้าที่เครื่องใหม่
+          ถ้าจะใช้อีกเครื่อง ให้กดสำรองแล้วนำเข้าที่เครื่องใหม่
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" onClick={download}>
