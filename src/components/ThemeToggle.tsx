@@ -1,29 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Sun, Moon } from "lucide-react";
 
 type Theme = "light" | "dark";
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [mounted, setMounted] = useState(false);
+// สคริปต์ใน layout ตั้ง data-theme ไว้ก่อนหน้าเว็บโหลดเสร็จ ปุ่มนี้แค่อ่านและเปลี่ยนค่านั้น
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
 
-  useEffect(() => {
-    const stored = (typeof window !== "undefined"
-      ? (localStorage.getItem("theme") as Theme | null)
-      : null);
-    const initial: Theme =
-      stored ??
-      (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
-    setTheme(initial);
-    document.documentElement.setAttribute("data-theme", initial);
-    setMounted(true);
-  }, []);
+const readTheme = (): Theme => (document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+const noop = () => () => {};
+
+export default function ThemeToggle() {
+  const theme = useSyncExternalStore<Theme>(subscribe, readTheme, () => "dark");
+  const mounted = useSyncExternalStore(noop, () => true, () => false);
 
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem("theme", next);

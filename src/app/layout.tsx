@@ -4,7 +4,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "Kru Heem Prompt Builder",
-  description: "สร้าง Prompt สำหรับเจนคอนเทนต์การศึกษาในสไตล์ครูฮีม",
+  description: "สร้างคำสั่งให้ Claude เขียนโพสต์ในเสียงครูฮีม ไม่ซ้ำแพตเทิร์น พร้อมตัวตรวจกลิ่น AI",
 };
 
 const themeInitScript = `
@@ -76,7 +76,7 @@ export default function RootLayout({
           {/* Footer */}
           <footer className="py-4" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
             <p className="text-center text-micro" style={{ color: "var(--color-text-tertiary)" }}>
-              Built for ครูฮีม · Powered by Gemini
+              Built for ครูฮีม · ใช้คู่กับ Claude
             </p>
           </footer>
         </div>

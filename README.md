@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kru Heem Prompt Builder
 
-## Getting Started
+เว็บแอปสร้างคำสั่งให้ Claude เขียนโพสต์ Facebook ในเสียงครูฮีม
+เว็บจริง: https://kruheem-content-generator.vercel.app
 
-First, run the development server:
+## ใช้งาน
+
+1. **ตัวตนครูฮีม** ตั้งครั้งแรกครั้งเดียว ใส่ความเชื่อหลัก คำติดปาก และโพสต์จริง 2–3 ชิ้น
+2. **สร้างคำสั่ง** ใส่หัวข้อ ผู้อ่าน และวัตถุดิบจริง เลือกแพตเทิร์น (หรือกดปุ่มลัด) แล้วกดคัดลอกไปวางใน Claude
+3. **ตรวจบทความ** วางโพสต์ที่ Claude เขียนมา ดูจุดที่ไฮไลต์ แล้วบันทึกบรรทัดแรกไว้กันเปิดซ้ำ
+
+ข้อมูลทั้งหมดเก็บในเบราว์เซอร์เครื่องที่ใช้เท่านั้น ย้ายเครื่องให้ใช้ปุ่มสำรองในแท็บตัวตนครูฮีม
+
+## โครงไฟล์
+
+| ไฟล์ | หน้าที่ |
+|---|---|
+| `src/lib/prompt/options.ts` | คลังแพตเทิร์น วิธีเปิด 14 · โครงเรื่อง 12 · วิธีปิด 8 · น้ำเสียง · ความลึก ฯลฯ เพิ่มแบบใหม่ได้ที่นี่ |
+| `src/lib/prompt/antiAi.ts` | รายการสำนวน AI ที่ห้าม ใช้ทั้งในคำสั่งและในตัวตรวจ |
+| `src/lib/prompt/build.ts` | ประกอบคำสั่งจากค่าที่เลือก |
+| `src/lib/prompt/randomize.ts` | ปุ่มสุ่ม เลี่ยงแพตเทิร์นที่เพิ่งใช้ |
+| `src/lib/checker.ts` | ตัวตรวจกลิ่น AI |
+| `src/lib/store.ts` | เก็บค่าในเบราว์เซอร์ ประวัติ และไฟล์สำรอง |
+
+## พัฒนาต่อ
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+push เข้า `main` แล้ว Vercel จะอัปเดตเว็บให้เอง
