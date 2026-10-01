@@ -38,6 +38,16 @@ export interface CheckReport {
   warns: number;
   /** จุดที่ขึ้นบรรทัดใหม่แต่ไม่มีบรรทัดว่างคั่น */
   noGap: number;
+  /** ก้อนข้อความตามที่จะเห็นบนมือถือ ใช้ทำตัวอย่างหน้าจอ */
+  blocks: Block[];
+}
+
+export interface Block {
+  text: string;
+  /** ยาวเกินจอมือถือ */
+  long: boolean;
+  /** อยู่ในช่วงประโยคโดดเรียงกันตั้งแต่สามก้อน */
+  choppy: boolean;
 }
 
 // คำว่า "คุณ" ที่ไม่ได้ใช้เรียกผู้อ่าน
@@ -211,13 +221,15 @@ export function checkPost(
 
   const emojis = body.match(EMOJI) ?? [];
   const leadEmoji = paras.filter((p) => /^\p{Extended_Pictographic}/u.test(p)).length;
+  const trailEmoji = paras.filter((p) => /\p{Extended_Pictographic}\uFE0F?\s*$/u.test(p)).length;
+  const emojiNotes = [leadEmoji && `หัวย่อหน้า ${leadEmoji}`, trailEmoji && `ท้ายย่อหน้า ${trailEmoji}`].filter(Boolean);
   stats.push({
     id: "emoji",
     label: "อีโมจิ",
-    value: `${emojis.length} ตัว${leadEmoji ? ` (หัวย่อหน้า ${leadEmoji})` : ""}`,
-    status: leadEmoji >= 2 ? "fail" : emojis.length > 8 ? "warn" : "pass",
-    hint: "อีโมจิหัวย่อหน้าหลายย่อหน้าคือทรงของ AI",
-    fix: "ลดอีโมจิลง และไม่วางอีโมจิไว้หัวย่อหน้า",
+    value: `${emojis.length} ตัว${emojiNotes.length ? ` (${emojiNotes.join(" · ")})` : ""}`,
+    status: leadEmoji >= 2 ? "fail" : emojis.length > 8 || trailEmoji >= 3 ? "warn" : "pass",
+    hint: "อีโมจิหัวย่อหน้าหรือท้ายย่อหน้าหลายย่อหน้าคือทรงของ AI",
+    fix: "ลดอีโมจิลง ไม่วางอีโมจิไว้หัวย่อหน้า และไม่ปิดท้ายหลายย่อหน้าด้วยอีโมจิ",
   });
 
   const lens = paras.map((p) => p.length);
@@ -237,10 +249,11 @@ export function checkPost(
     fix: "ทำให้ย่อหน้ายาวสั้นไม่เท่ากัน ตามจังหวะของเนื้อเรื่อง",
   });
 
-  const blocks = body
+  const allBlocks = body
     .split(/\n\s*\n/)
     .map((b) => b.trim())
-    .filter((b) => b && !b.startsWith("#"));
+    .filter(Boolean);
+  const blocks = allBlocks.filter((b) => !b.startsWith("#"));
   const limit = BLOCK_LIMIT[opts.format] ?? BLOCK_LIMIT.mixed;
   const longBlocks = blocks.filter((b) => phoneLines(b) > limit);
   stats.push({
@@ -257,8 +270,10 @@ export function checkPost(
   let shortRun = 0;
   let maxShort = 0;
   let worst = -1;
+  const choppy = new Set<string>();
   blocks.forEach((b, i) => {
     shortRun = !b.includes("\n") && displayLength(b) <= SHORT_BLOCK_CHARS ? shortRun + 1 : 0;
+    if (shortRun >= 3) for (let k = i - shortRun + 1; k <= i; k++) choppy.add(blocks[k]);
     if (shortRun > maxShort) {
       maxShort = shortRun;
       worst = i - shortRun + 1;
@@ -338,7 +353,9 @@ export function checkPost(
   const fails = findings.filter((f) => f.severity === "fail").length + stats.filter((s) => s.status === "fail").length;
   const warns = findings.filter((f) => f.severity === "warn").length + stats.filter((s) => s.status === "warn").length;
 
-  return { body, firstLine, findings, highlights: merged, stats, fails, warns, noGap };
+  const shown: Block[] = allBlocks.map((text) => ({ text, long: longBlocks.includes(text), choppy: choppy.has(text) }));
+
+  return { body, firstLine, findings, highlights: merged, stats, fails, warns, noGap, blocks: shown };
 }
 
 /** คำสั่งสั้นๆ ให้วางกลับในแชท Claude เดิม แก้เฉพาะจุดที่ตรวจเจอ */

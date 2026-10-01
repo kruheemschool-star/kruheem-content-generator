@@ -952,6 +952,61 @@ body::before {
   padding: 0 1px;
 }
 
+/* ── Checker phone preview ── */
+/* กว้างพอให้ข้อความได้ราว 343px เท่าโพสต์ Facebook บนจอ 375px */
+.phone-frame {
+  max-width: 391px;
+  margin: 0 auto;
+  padding: 8px;
+  border-radius: 30px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-tertiary);
+}
+
+.phone-screen {
+  padding: 18px 16px;
+  border-radius: 22px;
+  background: var(--color-bg-secondary);
+  max-height: 70vh;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Sukhumvit Set", "Noto Sans Thai", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.phone-block + .phone-block {
+  margin-top: 1.45em;
+}
+
+.phone-block.is-long,
+.phone-block.is-choppy {
+  position: relative;
+  margin-left: -8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.phone-block.is-long {
+  background: rgba(251, 113, 133, 0.14);
+  box-shadow: inset 3px 0 0 var(--color-error);
+}
+
+.phone-block.is-choppy {
+  background: rgba(251, 191, 36, 0.14);
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
+.phone-flag {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--color-text-tertiary);
+}
+
 .prompt-pre {
   font-family: var(--font-sans);
   white-space: pre-wrap;

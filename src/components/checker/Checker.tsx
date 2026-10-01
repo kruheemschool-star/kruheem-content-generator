@@ -2,7 +2,7 @@
 
 import { Check, CircleAlert, CircleCheck, CircleX, Copy, Rows3, Save, ScanSearch } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { buildFixPrompt, checkPost, spaceLines, type CheckReport } from "@/lib/checker";
+import { buildFixPrompt, checkPost, spaceLines, type Block, type CheckReport } from "@/lib/checker";
 import { copyText } from "@/lib/clipboard";
 import { AUDIENCES, FORMATS } from "@/lib/prompt/options";
 import type { Audience } from "@/lib/prompt/types";
@@ -26,6 +26,22 @@ function Highlighted({ report }: { report: CheckReport }) {
   return <div className="prompt-pre">{out}</div>;
 }
 
+/** กรอบกว้างเท่าจอมือถือ ให้เห็นว่าโพสต์จะเว้นบรรทัดและยาวแค่ไหนบน Facebook */
+function PhonePreview({ blocks }: { blocks: Block[] }) {
+  return (
+    <div className="phone-frame">
+      <div className="phone-screen">
+        {blocks.map((b, i) => (
+          <div key={i} className={`phone-block${b.long ? " is-long" : b.choppy ? " is-choppy" : ""}`}>
+            {(b.long || b.choppy) && <span className="phone-flag">{b.long ? "ยาวเกินจอ" : "ประโยคโดดเรียงกัน"}</span>}
+            {b.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const STATUS_ICON = {
   pass: <CircleCheck size={15} style={{ color: "var(--color-success)" }} />,
   warn: <CircleAlert size={15} style={{ color: "var(--color-warning)" }} />,
@@ -40,6 +56,7 @@ export default function Checker() {
   const [format, setFormat] = useState(cfg.format);
   const [saved, setSaved] = useState(false);
   const [fixCopied, setFixCopied] = useState<"ok" | "fail" | null>(null);
+  const [view, setView] = useState<"marks" | "phone">("marks");
 
   const report = useMemo(
     () => (text.trim() ? checkPost(text, { audience, format, recentOpenings: openings }) : null),
@@ -196,14 +213,36 @@ export default function Checker() {
             </div>
 
             <div className="surface p-5">
-              <p className="sub-label">
-                โพสต์ที่ไฮไลต์แล้ว
-                <span className="hint inline-flex items-center gap-2">
-                  <mark className="mark-fail">ควรแก้</mark>
-                  <mark className="mark-warn">ควรดู</mark>
-                </span>
-              </p>
-              <Highlighted report={report} />
+              <div className="mb-3">
+                <Segmented<"marks" | "phone">
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    { value: "marks", label: "ไฮไลต์คำ" },
+                    { value: "phone", label: "ดูบนจอมือถือ" },
+                  ]}
+                />
+              </div>
+              {view === "marks" ? (
+                <>
+                  <p className="sub-label">
+                    โพสต์ที่ไฮไลต์แล้ว
+                    <span className="hint inline-flex items-center gap-2">
+                      <mark className="mark-fail">ควรแก้</mark>
+                      <mark className="mark-warn">ควรดู</mark>
+                    </span>
+                  </p>
+                  <Highlighted report={report} />
+                </>
+              ) : (
+                <>
+                  <p className="sub-label">
+                    หน้าตาโดยประมาณบน Facebook มือถือ
+                    <span className="hint">ขนาดจอแต่ละเครื่องต่างกันเล็กน้อย</span>
+                  </p>
+                  <PhonePreview blocks={report.blocks} />
+                </>
+              )}
             </div>
           </>
         )}

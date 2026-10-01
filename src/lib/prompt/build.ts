@@ -124,6 +124,9 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   if (!endingFits(ending, openingIds)) {
     notes.push(`วิธีปิด "${ending.label}" ต้องมีฉาก คำพูด หรือโจทย์ตอนเปิดให้ย้อนกลับไปหา วิธีเปิดที่เลือกไว้ไม่มีสิ่งนี้`);
   }
+  if (cfg.versions === 3 && cfg.length === "xlong") {
+    notes.push("3 เวอร์ชันของโพสต์ยาวพิเศษรวมกันยาวมาก เวอร์ชันหลังๆ มักสั้นลงหรือหลวมลง ถ้าอยากได้เต็มคุณภาพ เลือก 1 โพสต์ หรือลดเป็นยาว");
+  }
   if (cfg.ctas.includes("comment") && cfg.ending === "question") {
     notes.push("วิธีปิดเป็นคำถามอยู่แล้ว คำสั่งจะให้ใช้คำถามนั้นเป็นคำชวนคอมเมนต์ไปเลย");
   }
