@@ -1,9 +1,10 @@
 "use client";
 
-import { CircleAlert, CircleCheck, CircleX, Save, ScanSearch } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, CircleX, Copy, Rows3, Save, ScanSearch } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { checkPost, type CheckReport } from "@/lib/checker";
-import { AUDIENCES } from "@/lib/prompt/options";
+import { buildFixPrompt, checkPost, spaceLines, type CheckReport } from "@/lib/checker";
+import { copyText } from "@/lib/clipboard";
+import { AUDIENCES, FORMATS } from "@/lib/prompt/options";
 import type { Audience } from "@/lib/prompt/types";
 import { addRecentOpening, configStore, openingsStore, useStore } from "@/lib/store";
 import { Notice, Segmented } from "../ui";
@@ -36,12 +37,21 @@ export default function Checker() {
   const [openings] = useStore(openingsStore);
   const [text, setText] = useState("");
   const [audience, setAudience] = useState<Audience>(cfg.audience);
+  const [format, setFormat] = useState(cfg.format);
   const [saved, setSaved] = useState(false);
+  const [fixCopied, setFixCopied] = useState<"ok" | "fail" | null>(null);
 
   const report = useMemo(
-    () => (text.trim() ? checkPost(text, { audience, recentOpenings: openings }) : null),
-    [text, audience, openings],
+    () => (text.trim() ? checkPost(text, { audience, format, recentOpenings: openings }) : null),
+    [text, audience, format, openings],
   );
+
+  async function copyFix() {
+    if (!report) return;
+    const ok = await copyText(buildFixPrompt(report));
+    setFixCopied(ok ? "ok" : "fail");
+    setTimeout(() => setFixCopied(null), 2000);
+  }
 
   function saveOpening() {
     if (!report?.firstLine) return;
@@ -71,6 +81,10 @@ export default function Checker() {
             <p className="sub-label">โพสต์นี้เขียนถึง</p>
             <Segmented<Audience> value={audience} onChange={setAudience} options={AUDIENCES.map((a) => ({ value: a.id, label: a.label }))} />
           </div>
+          <div>
+            <p className="sub-label">จัดบรรทัดแบบ</p>
+            <Segmented value={format} onChange={setFormat} options={FORMATS.map((f) => ({ value: f.id, label: f.label }))} />
+          </div>
           <textarea
             className="field-textarea"
             style={{ minHeight: 360 }}
@@ -79,7 +93,12 @@ export default function Checker() {
             onChange={(e) => setText(e.target.value)}
           />
           {text && (
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2 flex-wrap">
+              {!!report?.noGap && (
+                <button type="button" className="btn-small" onClick={() => setText(spaceLines(text))}>
+                  <Rows3 size={13} /> เว้นบรรทัดให้ ({report.noGap} จุด)
+                </button>
+              )}
               <button type="button" className="btn-small" onClick={() => setText("")}>ล้างข้อความ</button>
             </div>
           )}
@@ -92,7 +111,7 @@ export default function Checker() {
             <p className="heading-md">ยังไม่มีโพสต์ให้ตรวจ</p>
             <p className="text-caption max-w-md mx-auto" style={{ color: "var(--color-text-tertiary)" }}>
               ตัวตรวจจะดูคำและทรงที่ห้ามในคำสั่ง จับแพตเทิร์นกังวลแล้วปลอบ นับคำว่าครูฮีม ดูจังหวะย่อหน้า
-              และเทียบบรรทัดแรกกับโพสต์ก่อนๆ ที่ครูบันทึกไว้
+              ดูว่าก้อนไหนยาวเกินจอมือถือหรือขาดตอน และเทียบบรรทัดแรกกับโพสต์ก่อนๆ ที่ครูบันทึกไว้
             </p>
           </div>
         ) : (
@@ -105,8 +124,25 @@ export default function Checker() {
                   </Notice>
                 ) : (
                   <Notice kind={report.fails ? "fail" : "warn"} icon={report.fails ? <CircleX size={16} /> : <CircleAlert size={16} />}>
-                    เจอ <b>{report.fails} จุดที่ควรแก้</b> และ <b>{report.warns} จุดที่ควรดู</b> ให้ Claude แก้เฉพาะจุดที่ไฮไลต์ ไม่ต้องเขียนใหม่ทั้งโพสต์
+                    เจอ <b>{report.fails} จุดที่ควรแก้</b> และ <b>{report.warns} จุดที่ควรดู</b> กดคัดลอกคำสั่งแก้ แล้ววางในแชท Claude เดิม
                   </Notice>
+                )}
+                {(report.fails > 0 || report.warns > 0) && (
+                  <button type="button" className="btn-copy" onClick={copyFix}>
+                    {fixCopied === "ok" ? (
+                      <>
+                        <Check size={16} /> คัดลอกแล้ว
+                      </>
+                    ) : fixCopied === "fail" ? (
+                      <>
+                        <CircleAlert size={16} /> คัดลอกไม่ได้
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} /> คัดลอกคำสั่งแก้
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
 

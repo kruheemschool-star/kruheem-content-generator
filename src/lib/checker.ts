@@ -24,6 +24,8 @@ export interface Stat {
   value: string;
   status: "pass" | "warn" | "fail";
   hint: string;
+  /** สิ่งที่ให้ Claude แก้ ใช้ตอนไม่ผ่าน */
+  fix?: string;
 }
 
 export interface CheckReport {
@@ -34,6 +36,8 @@ export interface CheckReport {
   stats: Stat[];
   fails: number;
   warns: number;
+  /** จุดที่ขึ้นบรรทัดใหม่แต่ไม่มีบรรทัดว่างคั่น */
+  noGap: number;
 }
 
 // คำว่า "คุณ" ที่ไม่ได้ใช้เรียกผู้อ่าน
@@ -44,6 +48,30 @@ const EMOJI = /\p{Extended_Pictographic}/gu;
 const WORRY = /กังวล|กลัว|เครียด|ห่วง|ทุกข์|ท้อ|หนักใจ|ใจเสีย|ปวดหัว/;
 const REASSURE = /ไม่ใช่ความผิด|ไม่ได้ผิด|ไม่ได้(?:อยู่|เป็น)(?:แค่)?คนเดียว|เป็นเรื่องปกติ|ไม่ต้องโทษตัวเอง|ไม่แปลก(?:เลย)?/;
 const QUESTION_END = /(?:\?|？|ไหม|มั้ย|หรือเปล่า|หรือไม่|ใช่ไหม|เหรอ|หรอ)\s*[😅🤔😊🙂]*\s*$/u;
+
+// ── หน้าตาบนมือถือ ──
+/** ตัวอักษรต่อบรรทัดบนจอ Facebook มือถือ (ประมาณ) */
+const PHONE_CHARS_PER_LINE = 38;
+/** ก้อนยาวเกินกี่บรรทัดบนมือถือถึงนับว่าเป็นพืด แยกตามแบบการจัดบรรทัด เผื่อจากที่สั่ง Claude ไว้หนึ่งบรรทัด */
+const BLOCK_LIMIT: Record<string, number> = { airy: 4, mixed: 6, flow: 10 };
+/** ก้อนบรรทัดเดียวที่สั้นกว่านี้ นับเป็นประโยคโดด */
+const SHORT_BLOCK_CHARS = 30;
+
+/** นับเฉพาะตัวที่กินที่ในบรรทัด สระบนล่างและวรรณยุกต์ไม่นับ */
+function displayLength(s: string): number {
+  return s.replace(/\p{M}/gu, "").length;
+}
+
+function phoneLines(block: string): number {
+  return block
+    .split("\n")
+    .reduce((n, l) => n + Math.max(1, Math.ceil(displayLength(l.trim()) / PHONE_CHARS_PER_LINE)), 0);
+}
+
+function quoteStart(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > 30 ? `${t.slice(0, 30)}…` : t;
+}
 
 /** ถ้าวางผลลัพธ์ทั้งก้อนจาก Claude มา ให้ตัดเอาเฉพาะส่วน [โพสต์] */
 export function extractBody(text: string): string {
@@ -84,7 +112,23 @@ function addMatches(body: string, re: RegExp, onMatch: (start: number, end: numb
   }
 }
 
-export function checkPost(text: string, opts: { audience: Audience; recentOpenings: string[] }): CheckReport {
+/** เว้นบรรทัดว่างคั่นทุกบรรทัดในส่วนโพสต์ ส่วนอื่นที่วางมาด้วยคงไว้ */
+export function spaceLines(text: string): string {
+  const src = text.replace(/\r\n/g, "\n");
+  const body = extractBody(src);
+  const spaced = body
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  const at = src.indexOf(body);
+  return at < 0 ? spaced : src.slice(0, at) + spaced + src.slice(at + body.length);
+}
+
+export function checkPost(
+  text: string,
+  opts: { audience: Audience; format: string; recentOpenings: string[] },
+): CheckReport {
   const body = extractBody(text);
   const paras = paragraphs(body);
   const firstLine = body.split("\n").find((l) => l.trim())?.trim() ?? "";
@@ -150,6 +194,7 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
     value: `${kh} ครั้ง`,
     status: kh >= 2 && kh <= 4 ? "pass" : kh === 0 || kh > 6 ? "fail" : "warn",
     hint: "โพสต์ Facebook ควรมี 2–4 ครั้ง",
+    fix: 'ปรับให้มีคำว่า "ครูฮีม" 2–4 ครั้ง วางคนละตำแหน่ง ที่เหลือใช้คำแทนตัวหรือละประธาน',
   });
 
   if (opts.audience === "parent") {
@@ -160,6 +205,7 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
       value: `${kpm} ครั้ง`,
       status: kpm >= 1 ? "pass" : "fail",
       hint: "โพสต์ถึงผู้ปกครองต้องเรียกผู้อ่านว่าคุณพ่อคุณแม่",
+      fix: "เรียกผู้อ่านว่าคุณพ่อคุณแม่",
     });
   }
 
@@ -171,6 +217,7 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
     value: `${emojis.length} ตัว${leadEmoji ? ` (หัวย่อหน้า ${leadEmoji})` : ""}`,
     status: leadEmoji >= 2 ? "fail" : emojis.length > 8 ? "warn" : "pass",
     hint: "อีโมจิหัวย่อหน้าหลายย่อหน้าคือทรงของ AI",
+    fix: "ลดอีโมจิลง และไม่วางอีโมจิไว้หัวย่อหน้า",
   });
 
   const lens = paras.map((p) => p.length);
@@ -184,8 +231,60 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
     id: "rhythm",
     label: "จังหวะย่อหน้า",
     value: `${paras.length} ย่อหน้า`,
-    status: lens.length >= 4 && cv < 0.25 ? "warn" : "pass",
+    // เว้นบรรทัดถี่คุมทุกก้อนไว้ไม่เกินสามบรรทัด ความยาวจึงใกล้กันเองโดยธรรมชาติ
+    status: lens.length >= 4 && cv < (opts.format === "airy" ? 0.15 : 0.25) ? "warn" : "pass",
     hint: "ย่อหน้ายาวใกล้เคียงกันหมดจะอ่านแล้วเหมือนเครื่องเขียน",
+    fix: "ทำให้ย่อหน้ายาวสั้นไม่เท่ากัน ตามจังหวะของเนื้อเรื่อง",
+  });
+
+  const blocks = body
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter((b) => b && !b.startsWith("#"));
+  const limit = BLOCK_LIMIT[opts.format] ?? BLOCK_LIMIT.mixed;
+  const longBlocks = blocks.filter((b) => phoneLines(b) > limit);
+  stats.push({
+    id: "long-blocks",
+    label: "ก้อนยาวเกินจอ",
+    value: `${longBlocks.length} ก้อน`,
+    status: longBlocks.length === 0 ? "pass" : longBlocks.length <= 2 ? "warn" : "fail",
+    hint: longBlocks.length
+      ? `ยาวเกินราว ${limit} บรรทัดบนมือถือ เช่นก้อนที่ขึ้นต้นว่า "${quoteStart(longBlocks[0])}"`
+      : `ทุกก้อนไม่เกินราว ${limit} บรรทัดบนมือถือ`,
+    fix: `ก้อนที่ขึ้นต้นว่า ${longBlocks.map((b) => `"${quoteStart(b)}"`).join(" ")} ยาวเกินจอมือถือ แบ่งให้สั้นลงตรงรอยต่อของความคิด เว้นบรรทัดว่างคั่น โดยไม่ตัดคำเชื่อมทิ้ง`,
+  });
+
+  let shortRun = 0;
+  let maxShort = 0;
+  let worst = -1;
+  blocks.forEach((b, i) => {
+    shortRun = !b.includes("\n") && displayLength(b) <= SHORT_BLOCK_CHARS ? shortRun + 1 : 0;
+    if (shortRun > maxShort) {
+      maxShort = shortRun;
+      worst = i - shortRun + 1;
+    }
+  });
+  stats.push({
+    id: "choppy",
+    label: "ประโยคโดดเรียงกัน",
+    value: `ติดกันสูงสุด ${maxShort} ก้อน`,
+    status: maxShort >= 5 ? "fail" : maxShort >= 3 ? "warn" : "pass",
+    hint: maxShort >= 3
+      ? `เริ่มที่ "${quoteStart(blocks[worst])}" ประโยคสั้นแยกก้อนเรียงกันอ่านแล้วขาดตอน`
+      : "ประโยคสั้นแยกก้อนเรียงกันหลายก้อนจะอ่านแล้วขาดตอน",
+    fix: worst >= 0
+      ? `ช่วงที่เริ่มว่า "${quoteStart(blocks[worst])}" เป็นประโยคสั้นแยกก้อนเรียงกัน ${maxShort} ก้อน รวมประโยคที่เป็นความคิดเดียวกันไว้ก้อนเดียว ใส่คำเชื่อมให้อ่านต่อกันลื่น`
+      : undefined,
+  });
+
+  const noGap = blocks.reduce((n, b) => n + b.split("\n").filter((l) => l.trim()).length - 1, 0);
+  stats.push({
+    id: "no-gap",
+    label: "ขึ้นบรรทัดแต่ไม่เว้น",
+    value: `${noGap} จุด`,
+    status: noGap ? "warn" : "pass",
+    hint: noGap ? "บนมือถือจะดูติดกัน กดปุ่มเว้นบรรทัดให้ใต้ช่องวางโพสต์ได้เลย" : "ทุกก้อนมีบรรทัดว่างคั่น",
+    fix: "เว้นบรรทัดว่างหนึ่งบรรทัดระหว่างทุกก้อน",
   });
 
   const lineList = body.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -201,6 +300,7 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
     value: `สูงสุด ${maxRun} บรรทัด`,
     status: maxRun >= 3 ? "warn" : "pass",
     hint: "ตั้งคำถามรัวๆ หลายบรรทัดติดกันคือทรงของ AI",
+    fix: "อย่าตั้งคำถามติดกันเกินสองประโยค เปลี่ยนบางข้อเป็นประโยคบอกเล่า",
   });
 
   const recent = opts.recentOpenings.map((s) => s.trim()).filter(Boolean);
@@ -217,6 +317,7 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
       value: `คล้ายสุด ${pct}%`,
       status: best.score >= 0.5 ? "fail" : best.score >= 0.3 ? "warn" : "pass",
       hint: best.line ? `ใกล้กับ "${best.line.slice(0, 40)}${best.line.length > 40 ? "…" : ""}"` : "",
+      fix: `เปลี่ยนบรรทัดแรกให้ไม่คล้าย "${quoteStart(best.line)}" ทั้งคำและทรงประโยค`,
     });
   }
 
@@ -237,5 +338,24 @@ export function checkPost(text: string, opts: { audience: Audience; recentOpenin
   const fails = findings.filter((f) => f.severity === "fail").length + stats.filter((s) => s.status === "fail").length;
   const warns = findings.filter((f) => f.severity === "warn").length + stats.filter((s) => s.status === "warn").length;
 
-  return { body, firstLine, findings, highlights: merged, stats, fails, warns };
+  return { body, firstLine, findings, highlights: merged, stats, fails, warns, noGap };
+}
+
+/** คำสั่งสั้นๆ ให้วางกลับในแชท Claude เดิม แก้เฉพาะจุดที่ตรวจเจอ */
+export function buildFixPrompt(report: CheckReport): string {
+  const items: string[] = [];
+  for (const f of report.findings) {
+    const seen = f.samples.length ? ` เช่น ${f.samples.map((s) => `"${s}"`).join(" ")}` : "";
+    items.push(`${f.label}${seen} ▸ ${f.fix}`);
+  }
+  for (const s of report.stats) {
+    if (s.status !== "pass" && s.fix) items.push(`${s.label} (${s.value}) ▸ ${s.fix}`);
+  }
+  return [
+    `แก้โพสต์ที่ขึ้นต้นว่า "${quoteStart(report.firstLine)}" เฉพาะจุดต่อไปนี้ ส่วนอื่นคงไว้ตามเดิม ห้ามเขียนใหม่ทั้งโพสต์`,
+    "",
+    items.map((t, i) => `${i + 1}. ${t}`).join("\n"),
+    "",
+    "แก้แล้วส่งกลับมาเฉพาะ [โพสต์] ทั้งโพสต์ฉบับแก้ ไม่ต้องอธิบายว่าแก้อะไร",
+  ].join("\n");
 }
