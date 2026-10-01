@@ -265,11 +265,13 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
   parts.push(section("น้ำเสียงและความลึก", lines(style)));
 
   // ── ความยาว หน้าตา ──
+  const airy = cfg.format === "airy";
+  const length = byId(LENGTHS, cfg.length)!;
   parts.push(
     section(
       "ความยาวและหน้าตา",
       lines([
-        `ความยาว ▸ ${byId(LENGTHS, cfg.length)!.instruction}${cfg.versions === 3 ? " ต่อเวอร์ชัน" : ""}`,
+        `ความยาว ▸ ${length.instruction}${cfg.versions === 3 ? " ต่อเวอร์ชัน" : ""} ${airy ? "วัดจากเวลาอ่านอย่างเดียว ไม่ต้องนับย่อหน้า" : length.paragraphs}`,
         `การจัดบรรทัด ▸ ${byId(FORMATS, cfg.format)!.instruction}`,
         `อีโมจิ ▸ ${byId(EMOJI_LEVELS, cfg.emoji)!.instruction}`,
         "ภาษาไทยทั้งหมด ไม่ใช้คำภาษาอังกฤษในโพสต์",
@@ -354,7 +356,12 @@ export function buildPrompt(cfg: BuilderConfig, voiceIn: VoiceProfile, recentOpe
     "ไม่มีตัวเลข เคส คำพูด หรืองานวิจัยที่ครูไม่ได้ให้มา",
     `เรียกผู้อ่านว่า "${readerCall}" ถูกทุกครั้ง`,
     'คำว่า "ครูฮีม" มี 2–4 ครั้ง',
-    "ย่อหน้ายาวไม่เท่ากัน และไม่ได้จบทุกย่อหน้าด้วยประโยคคม",
+    ...(airy
+      ? [
+          "ทุกประโยคอยู่บรรทัดของตัวเอง และมีบรรทัดว่างคั่นทุกประโยค ไม่มีสองประโยคติดกัน",
+          "ประโยคยาวสั้นไม่เท่ากัน และไม่ได้เป็นประโยคคมทุกบรรทัด",
+        ]
+      : ["ย่อหน้ายาวไม่เท่ากัน และไม่ได้จบทุกย่อหน้าด้วยประโยคคม"]),
     "ไม่มี Markdown และไม่มีขีดยาว",
   ];
   parts.push(
