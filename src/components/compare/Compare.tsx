@@ -236,7 +236,7 @@ export default function Compare() {
         </div>
         <TopicLibrary
           audience={audience}
-          grade={grade}
+          grade={cfg.grade}
           current={topic}
           onPick={(v, hint) => {
             setTopic(v);

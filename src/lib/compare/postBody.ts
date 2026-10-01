@@ -51,18 +51,45 @@ function parse(src: string): Section[] {
 }
 
 const HASHTAG_LINE = /^\s*(?:#\S+\s*)+$/;
-const ITEM = /^\s*(?:\d+[.)]|[-•*])\s/;
+// เส้นคั่นอย่าง --- หรือ ━━━
+const RULE_LINE = /^\s*(?:[-–—_*=─━•·]\s*){3,}$/u;
+// บรรทัดหัวข้อแนะนำแบบมีเลขนำ: 1. / 1) / (1) / 1.ไม่มีวรรค / 1️⃣ / - • * / ตัวเลือกที่ 1: / หัวข้อที่ 2
+const ITEM = /^\s*(?:\(?\d+[.)]|[0-9]\uFE0F?\u20E3|[-•*](?=\s)|(?:หัวข้อ|ตัวเลือก)(?:ที่)?\s*\d+\s*[:.)]?)/u;
+// ในส่วนที่มีป้ายหัวข้อแนะนำแน่ๆ รับหัวข้อที่นำด้วยอีโมจิหรือเครื่องหมายคำพูดด้วย
+const EMOJI_OR_QUOTE = /^\s*(?:\p{Extended_Pictographic}|["“‘«])/u;
+// บรรทัดอธิบายใต้หัวข้อ เช่น (เน้นความอยากรู้) หรือ → ใช้กับผู้ปกครอง หรือบรรทัดที่ย่อหน้าเข้าไป
+const CONTINUATION = /^(?:\s*[(（]|\s*(?:→|->|➡)|\s{2,}\S)/u;
 
-/** ตัดเฉพาะรายการหัวข้อช่วงแรกที่ติดกัน (ข้ามบรรทัดว่างด้านบน) รายการที่อยู่ในเนื้อโพสต์ทีหลังไม่แตะ */
-function dropLeadingItems(lines: string[], min: number, max = Infinity): string[] {
-  let i = 0;
-  while (i < lines.length && !lines[i].trim()) i++;
-  let j = i;
-  while (j < lines.length && ITEM.test(lines[j])) j++;
-  const run = j - i;
-  if (run < min || run > max) return lines;
-  if (!lines.slice(j).some((l) => l.trim())) return lines; // ไม่มีอะไรต่อจากรายการ แปลว่ารายการคือเนื้อ
-  return lines.slice(j);
+/**
+ * ตัดรายการหัวข้อช่วงแรก (ข้ามบรรทัดว่างระหว่างข้อได้) เก็บส่วนที่ตามมา
+ * นับเฉพาะบรรทัดที่เป็นข้อ ถ้าน้อยกว่า min หรือมากกว่า max หรือไม่มีอะไรต่อจากรายการ ถือว่าเป็นเนื้อ ไม่ตัด
+ */
+function dropLeadingItems(lines: string[], min: number, max: number, inHeadline: boolean): string[] {
+  // หัวข้อที่นำด้วยอีโมจิต้องสั้น ย่อหน้าเปิดโพสต์ที่ขึ้นต้นด้วยอีโมจิจะได้ไม่ถูกตัดไปด้วย
+  const isItem = (l: string) => ITEM.test(l) || (inHeadline && EMOJI_OR_QUOTE.test(l) && l.trim().length <= 90);
+  let j = 0;
+  let end = 0;
+  let items = 0;
+  while (j < lines.length) {
+    const l = lines[j];
+    if (!l.trim()) {
+      j++;
+      continue;
+    }
+    if (isItem(l)) {
+      items++;
+      end = ++j;
+      continue;
+    }
+    if (items > 0 && CONTINUATION.test(l)) {
+      end = ++j;
+      continue;
+    }
+    break;
+  }
+  if (items < min || items > max) return lines;
+  if (!lines.slice(end).some((l) => l.trim() && !RULE_LINE.test(l))) return lines;
+  return lines.slice(end);
 }
 
 export function postBody(text: string): string {
@@ -80,17 +107,17 @@ export function postBody(text: string): string {
     // มีป้ายแต่ไม่มีป้ายเนื้อโพสต์ เนื้อมักต่อท้ายหัวข้อแนะนำ จึงตัดแค่รายการหัวข้อช่วงแรก แล้วเก็บที่เหลือ
     picked = sections
       .filter((s) => s.kind !== "hashtags" && s.kind !== "version")
-      .map((s) => (s.kind === "headline" ? { ...s, lines: dropLeadingItems(s.lines, 1) } : s));
+      .map((s) => (s.kind === "headline" ? { ...s, lines: dropLeadingItems(s.lines, 1, Infinity, true) } : s));
   } else {
     // ไม่มีป้ายเลย ถ้าบนสุดเป็นรายการ 2–5 บรรทัดแล้วมีเนื้อต่อ ถือว่าเป็นหัวข้อแนะนำ
-    picked = [{ kind: "preamble", lines: dropLeadingItems(sections[0].lines, 2, 5) }];
+    picked = [{ kind: "preamble", lines: dropLeadingItems(sections[0].lines, 2, 5, false) }];
   }
   return picked
     .map((s) => s.lines.join("\n").trim())
     .filter(Boolean)
     .join("\n\n")
     .split("\n")
-    .filter((l) => !HASHTAG_LINE.test(l))
+    .filter((l) => !HASHTAG_LINE.test(l) && !RULE_LINE.test(l))
     .join("\n")
     .trim();
 }
