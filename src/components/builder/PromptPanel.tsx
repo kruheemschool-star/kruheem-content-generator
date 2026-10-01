@@ -1,6 +1,8 @@
 "use client";
 
+import { ActiveContext } from "@/components/active";
 import { motion } from "framer-motion";
+import { useContext } from "react";
 import {
   BookOpen,
   Calculator,
@@ -23,9 +25,10 @@ import type { BuilderConfig, HistoryEntry } from "@/lib/prompt/types";
 import { Notice } from "../ui";
 
 function EmptyState() {
+  const active = useContext(ActiveContext);
   return (
     <div className="h-full flex flex-col items-center justify-center space-y-8 py-16">
-      <div className="relative w-44 h-44 flex items-center justify-center">
+      <div key={active ? "on" : "off"} className="relative w-44 h-44 flex items-center justify-center">
         <div className="absolute inset-4 blur-3xl animate-pulse rounded-full" style={{ background: "var(--color-apricot-glow)" }} />
         <div
           className="absolute rounded-full border border-dashed"
@@ -39,7 +42,7 @@ function EmptyState() {
             boxShadow: "0 0 32px var(--color-apricot-glow)",
           }}
         >
-          <motion.div animate={{ rotate: [0, 10, -8, 6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
+          <motion.div animate={{ rotate: [0, 10, -8, 6, 0] }} transition={{ duration: 4, repeat: active ? Infinity : 0, ease: "easeInOut" }}>
             <Wand2 size={36} style={{ color: "var(--color-apricot-500)", opacity: 0.8 }} />
           </motion.div>
         </div>
@@ -55,7 +58,7 @@ function EmptyState() {
             className="absolute inset-0"
             style={{ rotate: initialDeg }}
             animate={{ rotate: initialDeg + 360 }}
-            transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 9, repeat: active ? Infinity : 0, ease: "linear" }}
           >
             <div className="absolute left-1/2" style={{ top: 6, transform: "translateX(-50%)" }}>
               <motion.div
@@ -67,7 +70,7 @@ function EmptyState() {
                   rotate: -initialDeg,
                 }}
                 animate={{ rotate: -(initialDeg + 360) }}
-                transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+                transition={{ duration: 9, repeat: active ? Infinity : 0, ease: "linear" }}
               >
                 <Icon size={15} style={{ color }} strokeWidth={1.75} />
               </motion.div>

@@ -14,14 +14,14 @@ export interface Store<T> {
   subscribe: (listener: () => void) => () => void;
 }
 
-function createStore<T>(key: string, fallback: T, normalize: (raw: unknown) => T): Store<T> {
+function createStore<T>(key: string, fallback: T, normalize: (raw: unknown) => T, crossTab = true): Store<T> {
   let cachedRaw: string | null | undefined;
   let cached: T = fallback;
   let memoryOnly = false;
   const listeners = new Set<() => void>();
 
   function get(): T {
-    if (memoryOnly) return cached;
+    if (memoryOnly || (!crossTab && cachedRaw !== undefined)) return cached;
     let raw: string | null = null;
     try {
       raw = localStorage.getItem(key);
@@ -58,10 +58,10 @@ function createStore<T>(key: string, fallback: T, normalize: (raw: unknown) => T
     const onStorage = (e: StorageEvent) => {
       if (e.key === key) listener();
     };
-    window.addEventListener("storage", onStorage);
+    if (crossTab) window.addEventListener("storage", onStorage);
     return () => {
       listeners.delete(listener);
-      window.removeEventListener("storage", onStorage);
+      if (crossTab) window.removeEventListener("storage", onStorage);
     };
   }
 
@@ -95,6 +95,16 @@ export const configStore = createStore<BuilderConfig>("kh-builder-v2", DEFAULT_C
 export const voiceStore = createStore<VoiceProfile>("kh-voice-v1", DEFAULT_VOICE, normalizeVoice);
 export const historyStore = createStore<HistoryEntry[]>("kh-history-v1", [], normalizeHistory);
 export const openingsStore = createStore<string[]>("kh-openings-v1", [], normalizeStrings);
+
+/** เวอร์ชันที่ครูเลือกใช้ล่าสุด: ใหม่ / เดิม (ก่อนปรับ) / หน้าเปรียบเทียบ
+ * ไม่ตามแท็บอื่น เพราะเปิดสองแท็บแล้วสลับเวอร์ชันในแท็บหนึ่ง อีกแท็บจะสลับตามจนงานที่พิมพ์ค้างหาย */
+export type AppMode = "new" | "old" | "compare";
+export const modeStore = createStore<AppMode>(
+  "kh-mode-v1",
+  "new",
+  (raw) => (raw === "old" || raw === "compare" ? raw : "new"),
+  false,
+);
 
 /** บันทึกแพตเทิร์นที่ใช้ ข้ามถ้าเพิ่งบันทึกชุดเดียวกันไปไม่ถึง 10 นาที */
 export function recordHistory(entry: Omit<HistoryEntry, "id" | "at">) {

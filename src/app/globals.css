@@ -1198,3 +1198,133 @@ select.field-input {
     display: none;
   }
 }
+
+/* ── Version switch + compare ── */
+.mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--color-bg-tertiary);
+  border: 1px dashed var(--color-border-default);
+}
+
+.mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  background: transparent;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mode-pill:hover {
+  color: var(--color-text-primary);
+}
+
+.mode-pill.active {
+  color: var(--color-accent-text);
+  background: var(--color-bg-secondary);
+  border-color: var(--color-apricot-500);
+}
+
+.mode-pill .mode-sub {
+  font-size: 0.62rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.cmp-table {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cmp-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.cmp-row + .cmp-row {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.cmp-row.cmp-head {
+  background: var(--color-bg-tertiary);
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--color-text-tertiary);
+}
+
+.cmp-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cmp-cell svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.cmp-side-label {
+  display: none;
+  flex: none;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-tertiary);
+  margin-top: 1px;
+}
+
+@media (max-width: 640px) {
+  .mode-switch {
+    width: 100%;
+  }
+
+  .mode-pill {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 6px;
+    font-size: 0.76rem;
+    gap: 4px;
+  }
+
+  .mode-pill svg {
+    display: none;
+  }
+
+  .cmp-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .cmp-row.cmp-head {
+    display: none;
+  }
+
+  .cmp-side-label {
+    display: inline-block;
+  }
+}
+
+/* เวอร์ชันเดิมไม่มีวงแสงตอนคลิกช่องพิมพ์ (ของเดิมอ้างตัวแปรที่ไม่มีอยู่จริง จึงไม่มีเงา) */
+.legacy-ui .field-input:focus,
+.legacy-ui .field-textarea:focus {
+  box-shadow: none;
+}
